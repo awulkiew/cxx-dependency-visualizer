@@ -1,0 +1,46 @@
+﻿<Window x:Class="CxxDependencyVisualizer.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:CxxDependencyVisualizer"
+        mc:Ignorable="d"
+        Title="C++ Dependency Visualizer" Height="450" Width="800" Loaded="Window_Loaded">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="1*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1*" />
+                <ColumnDefinition Width="1*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBox Grid.Column="0" x:Name="textBoxDir" Height="23" TextWrapping="NoWrap"
+                     Text="D:\lib\modular-boost\libs\geometry\include" />
+            <TextBox Grid.Column="1" x:Name="textBoxFile" Height="23" TextWrapping="NoWrap"
+                     Text="boost/geometry.hpp" />
+            <Button Grid.Column="2" x:Name="buttonAnalyze" Content="Analyze" Width="75" Height="23"
+                    Click="buttonAnalyze_Click"/>
+        </Grid>
+        <Grid Grid.Row="1" x:Name="canvasGrid" ClipToBounds="True" Background="White"
+              SizeChanged="canvasGrid_SizeChanged"
+              MouseWheel="canvasGrid_MouseWheel" MouseDown="canvasGrid_MouseDown" MouseUp="canvasGrid_MouseUp" MouseMove="canvasGrid_MouseMove" MouseLeave="canvasGrid_MouseLeave">
+            <Canvas x:Name="canvas" Background="White">
+                <Canvas.RenderTransform>
+                    <MatrixTransform/>
+                </Canvas.RenderTransform>
+            </Canvas>
+        </Grid>
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBox Grid.Column="0" x:Name="textBoxFind" Height="23" TextWrapping="NoWrap" Text="" />
+            <Button Grid.Column="2" x:Name="buttonFind" Content="Find" Width="75" Height="23" Click="buttonFind_Click" />
+        </Grid>
+    </Grid>
+</Window>
