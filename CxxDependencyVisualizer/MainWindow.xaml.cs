@@ -163,7 +163,7 @@ namespace CxxDependencyVisualizer
 
             int graphW = maxX - minX;
             int graphH = maxY - minY;
-            double cellSize = maxSize * 0.75;
+            double cellSize = maxSize;
             double graphWidth = cellSize * graphW;
             double graphHeight = cellSize* graphH;
             double xOrig = graphWidth / 2;
@@ -191,9 +191,9 @@ namespace CxxDependencyVisualizer
                     line.Stroke = Brushes.DarkGray;
                     line.Visibility = Visibility.Hidden;
 
-                    d.Value.childrenEdges.Add(line);
+                    d.Value.childrenLines.Add(line);
 
-                    c.parentEdges.Add(line);
+                    c.parentsLines.Add(line);
 
                     canvas.Children.Add(line);
                 }
@@ -246,57 +246,75 @@ namespace CxxDependencyVisualizer
             }
         }
 
-        TextBlock textBlockActive = null;
-        Border borderActive = null;
+        List<TextBlock> textBlocksActive = new List<TextBlock>();
+        List<Line> linesActive = new List<Line>();
         private void TextBlock_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            // If this event is fired data != null
+            var textBlock = sender as TextBlock;
+            TextBlock lastTextBlock = null;
 
-            if (textBlockActive != null)
+            if (Keyboard.IsKeyDown(Key.LeftShift)
+                && textBlocksActive.Count > 0
+                && textBlock != textBlocksActive[0])
             {
-                var d = data.dict[textBlockActive.DataContext as string];
-                foreach (var line in d.childrenEdges)
-                {
-                    line.Stroke = Brushes.DarkGray;
-                    line.Visibility = Visibility.Hidden;
-                }
-                foreach (var line in d.parentEdges)
-                {
-                    line.Stroke = Brushes.DarkGray;
-                    line.Visibility = Visibility.Hidden;
-                }
-                if (borderActive != null)
-                {
-                    borderActive.BorderThickness = new Thickness(1);
-                    if (d.important)
-                        borderActive.BorderBrush = Brushes.Blue;
-                    else
-                        borderActive.BorderBrush = Brushes.Black;
-                }
+                lastTextBlock = textBlocksActive[0];
             }
 
-            borderActive = null;
-            textBlockActive = null;
+            foreach (var tb in textBlocksActive)
+            {
+                var d = data.dict[tb.DataContext as string];
 
-            var textBlock = sender as TextBlock;
+                Border borderActive = tb.Parent as Border;
+                borderActive.BorderThickness = new Thickness(1);
+                if (d.important)
+                    borderActive.BorderBrush = Brushes.Blue;
+                else
+                    borderActive.BorderBrush = Brushes.Black;
+            }
+            foreach (var line in linesActive)
+            {
+                line.Stroke = Brushes.DarkGray;
+                line.Visibility = Visibility.Hidden;
+            }
+
+            textBlocksActive.Clear();
+            linesActive.Clear();
+
             var border = textBlock.Parent as Border;
             border.BorderThickness = new Thickness(2);
             border.BorderBrush = Brushes.Red;
+            textBlocksActive.Add(textBlock);
 
-            foreach (var line in data.dict[textBlock.DataContext as string].childrenEdges)
+            // select one
+            if (lastTextBlock == null)
             {
-                line.Stroke = Brushes.Red;
-                line.Visibility = Visibility.Visible;
-            }
+                foreach (var line in data.dict[textBlock.DataContext as string].childrenLines)
+                {
+                    line.Stroke = Brushes.Red;
+                    line.Visibility = Visibility.Visible;
+                    linesActive.Add(line);
+                }
 
-            foreach (var line in data.dict[textBlock.DataContext as string].parentEdges)
+                foreach (var line in data.dict[textBlock.DataContext as string].parentsLines)
+                {
+                    line.Stroke = Brushes.Green;
+                    line.Visibility = Visibility.Visible;
+                    linesActive.Add(line);
+                }
+            }
+            // select path
+            else
             {
-                line.Stroke = Brushes.Green;
-                line.Visibility = Visibility.Visible;
-            }
+                var lastBorder = lastTextBlock.Parent as Border;
+                lastBorder.BorderThickness = new Thickness(2);
+                lastBorder.BorderBrush = Brushes.Red;
+                textBlocksActive.Add(lastTextBlock);
 
-            textBlockActive = textBlock;
-            borderActive = border;
+                List<string> path = FindPath(lastTextBlock.DataContext as string,
+                                             textBlock.DataContext as string,
+                                             data.dict);
+                int a = 1;
+            }
         }
 
         private void canvasGrid_MouseWheel(object sender, MouseWheelEventArgs e)
@@ -479,8 +497,8 @@ namespace CxxDependencyVisualizer
             public PointI position = null;
             public Border border = null;
             public TextBlock textBlock = null;
-            public List<Line> childrenEdges = new List<Line>();
-            public List<Line> parentEdges = new List<Line>();
+            public List<Line> childrenLines = new List<Line>();
+            public List<Line> parentsLines = new List<Line>();
         }
 
         class LibData
@@ -662,6 +680,16 @@ namespace CxxDependencyVisualizer
             }
         }
 
+        private static List<string> FindPath(string n1, string n2,
+                                             Dictionary<string, IncludeData> dict)
+        {
+            List<string> result = new List<string>();
+            
+            // TODO
+
+            return result;
+        }
+
         private static string Path(string dir, string file)
         {
             string d = dir.Replace('/', '\\');
@@ -689,7 +717,7 @@ namespace CxxDependencyVisualizer
 
         private static bool Empty(string s)
         {
-            return s == null || s == "";
+            return s == null || s.Length == 0;
         }
 
         private static List<string> GetChildren(string dir, string path)
