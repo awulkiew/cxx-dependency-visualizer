@@ -282,12 +282,20 @@ namespace CxxDependencyVisualizer
             textBlocksActive.Clear();
             linesActive.Clear();
 
+            if (lastTextBlock != null)
+            {
+                var lastBorder = lastTextBlock.Parent as Border;
+                lastBorder.BorderThickness = new Thickness(2);
+                lastBorder.BorderBrush = Brushes.Red;
+                textBlocksActive.Add(lastTextBlock);
+            }
+
             var border = textBlock.Parent as Border;
             border.BorderThickness = new Thickness(2);
             border.BorderBrush = Brushes.Red;
             textBlocksActive.Add(textBlock);
 
-            // select one
+            // select chldren and parents
             if (lastTextBlock == null)
             {
                 foreach (var line in data.dict[textBlock.DataContext as string].childrenLines)
@@ -306,14 +314,9 @@ namespace CxxDependencyVisualizer
                     linesActive.Add(line);
                 }
             }
-            // select path
+            // find and select path
             else
             {
-                var lastBorder = lastTextBlock.Parent as Border;
-                lastBorder.BorderThickness = new Thickness(2);
-                lastBorder.BorderBrush = Brushes.Red;
-                textBlocksActive.Add(lastTextBlock);
-
                 List<string> path = FindPath(lastTextBlock.DataContext as string,
                                              textBlock.DataContext as string,
                                              data.dict);
