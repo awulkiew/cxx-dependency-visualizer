@@ -27,7 +27,16 @@
         </Grid>
         <Grid Grid.Row="1" x:Name="canvasGrid" ClipToBounds="True" Background="White"
               SizeChanged="canvasGrid_SizeChanged"
-              MouseWheel="canvasGrid_MouseWheel" MouseDown="canvasGrid_MouseDown" MouseUp="canvasGrid_MouseUp" MouseMove="canvasGrid_MouseMove" MouseLeave="canvasGrid_MouseLeave">
+              MouseWheel="canvasGrid_MouseWheel"
+              MouseDown="canvasGrid_MouseDown"
+              MouseUp="canvasGrid_MouseUp"
+              MouseMove="canvasGrid_MouseMove"
+              MouseLeave="canvasGrid_MouseLeave">
+            <Grid.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="Find All Cycles" Click="MenuItemCycles_Click" />
+                </ContextMenu>
+            </Grid.ContextMenu>
             <Canvas x:Name="canvas" Background="White">
                 <Canvas.RenderTransform>
                     <MatrixTransform/>

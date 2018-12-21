@@ -32,7 +32,7 @@ namespace CxxDependencyVisualizer
             this.WindowState = WindowState.Maximized;
         }
 
-        LibData data = null;
+        LibData data = new LibData();
 
         private void buttonAnalyze_Click(object sender, RoutedEventArgs e)
         {
@@ -137,14 +137,19 @@ namespace CxxDependencyVisualizer
                 if (d.Value.border == null || d.Value.textBlock == null)
                 {
                     TextBlock textBlock = new TextBlock();
-                    textBlock.Background = Brushes.White;
+                    if (d.Value.duplicatedChildren)
+                        textBlock.Background = Brushes.Yellow;
+                    else
+                        textBlock.Background = Brushes.White;
                     textBlock.Text = FileFromPath(d.Key);
                     textBlock.Padding = new Thickness(5);
                     Size s = MeasureTextBlock(textBlock);
                     textBlock.Width = s.Width + 10;
                     textBlock.Height = s.Height + 10;
                     textBlock.DataContext = d.Key;
-                    textBlock.ToolTip = d.Key + "\r\nLevels: [" + d.Value.minLevel + ", " + d.Value.maxLevel + "]";
+                    textBlock.ToolTip = d.Key
+                                      + "\r\nLevels: [" + d.Value.minLevel + ", " + d.Value.maxLevel + "]"
+                                      + (d.Value.duplicatedChildren ? "\r\nWARNING: duplicated includes" : "");
                     textBlock.MouseDown += TextBlock_MouseDown;
 
                     Border border = new Border();
@@ -381,6 +386,108 @@ namespace CxxDependencyVisualizer
             }
         }
 
+        class StringListsCompare : IEqualityComparer<List<string>>
+        {
+            public bool Equals(List<string> x, List<string> y)
+            {
+                if (x.Count != y.Count)
+                    return false;
+                for (int i = 0; i < x.Count; ++i)
+                    if (x[i] != y[i])
+                        return false;
+                return true;
+            }
+
+            public int GetHashCode(List<string> obj)
+            {
+                return obj.GetHashCode();
+            }
+        }
+
+        private int IndexOfSmallest(List<string> list)
+        {
+            int result = -1;
+            if (list.Count > 0)
+            {
+                result = 0;
+                string smallest = list[0];
+                for (int i = 1; i < list.Count; ++i)
+                    if (list[i].CompareTo(smallest) < 0)
+                    {
+                        result = i;
+                        smallest = list[i];
+                    }
+            }
+            return result;
+        }
+
+        private void Rotate(List<string> list, int firstId)
+        {
+            if (0 < firstId && firstId < list.Count)
+            {
+                List<string> l1 = new List<string>();
+                List<string> l2 = new List<string>();
+                for (int i = 0; i < firstId; ++i)
+                    l1.Add(list[i]);
+                for (int i = firstId; i < list.Count; ++i)
+                    l2.Add(list[i]);
+                list.Clear();
+                foreach (var s in l2)
+                    list.Add(s);
+                foreach (var s in l1)
+                    list.Add(s);
+            }
+        }
+
+        private void MenuItemCycles_Click(object sender, RoutedEventArgs e)
+        {
+            activeControls.Reset(data);
+
+            List<List<string>> cycles = new List<List<string>>();
+            foreach (var d in data.dict)
+            {
+                List<string> cycle = FindCycle(d.Key, data.dict);
+                if (cycle.Count > 0)
+                {
+                    // Find smallest and rotate
+                    int idRot = IndexOfSmallest(cycle);
+                    Rotate(cycle, idRot);
+                    if (!cycles.Contains(cycle, new StringListsCompare()))
+                        cycles.Add(cycle);
+                }
+            }
+            // sort cycles by name to compare between them and reject already added
+            if (cycles.Count > 0)
+            {
+                string message = "Found cycles {" + cycles.Count.ToString() + "}:";
+                int ci = 1;
+                foreach (var cycle in cycles)
+                {
+                    message += "\r\n" + (ci++) + ":";
+                    foreach (var h in cycle)
+                        message += "\r\n" + h;
+                }
+
+                foreach (var cycle in cycles)
+                {
+                    var prev = data.dict[cycle[cycle.Count - 1]];
+                    foreach(var s in cycle)
+                    {
+                        var curr = data.dict[s];
+                        activeControls.Select(curr.textBlock, ActiveControls.SelectType.Selected);
+                        int id = prev.children.IndexOf(s);
+                        if (id >= 0)
+                            activeControls.Select(prev.childrenLines[id], ActiveControls.SelectType.Selected);
+                        prev = curr;
+                    }
+                }
+
+                MessageBox.Show(message, "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            else
+                MessageBox.Show("No cycles found.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
         private void canvasGrid_MouseWheel(object sender, MouseWheelEventArgs e)
         {
             double s = e.Delta > 0 ? 1.25 : (1 / 1.25);
@@ -540,6 +647,7 @@ namespace CxxDependencyVisualizer
                     this.parents.Add(parentPath);
                 this.children = children;
                 this.important = important;
+
                 this.minLevel = level;
                 this.maxLevel = level;
             }
@@ -557,6 +665,7 @@ namespace CxxDependencyVisualizer
             public bool important = true;
             public int minLevel = -1;
             public int maxLevel = -1;
+            public bool duplicatedChildren = false;
 
             public PointI position = null;
             public Border border = null;
@@ -567,6 +676,9 @@ namespace CxxDependencyVisualizer
 
         class LibData
         {
+            public LibData()
+            { }
+
             public LibData(string dir, string file, bool fromLibOnly)
             {
                 rootPath = Path(dir, file);
@@ -733,7 +845,10 @@ namespace CxxDependencyVisualizer
                                                    level);
                 foreach (string c in children)
                     if (!fromLibOnly || File.Exists(c))
-                        data.children.Add(c);
+                        if (data.children.Contains(c))
+                            data.duplicatedChildren = true;
+                        else
+                            data.children.Add(c);
 
                 dict.Add(path, data);
 
@@ -797,6 +912,20 @@ namespace CxxDependencyVisualizer
                         return true;
                     }
             return false;
+        }
+
+        private static List<string> FindCycle(string header,
+                                              Dictionary<string, IncludeData> dict)
+        {
+            List<string> result = new List<string>();
+            Dictionary<string, int> map = new Dictionary<string, int>();
+            var d = dict[header];
+            foreach(var cStr in d.children)
+                map.Add(cStr, 0);
+            foreach (var cStr in d.children)
+                if (FindPath(cStr, cStr, header, dict, map, result))
+                    return result;
+            return result;
         }
 
         private static bool Update(Dictionary<string, int> map, string n, int l)
