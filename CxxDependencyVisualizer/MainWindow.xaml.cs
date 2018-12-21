@@ -290,8 +290,19 @@ namespace CxxDependencyVisualizer
                 lines.Add(line);
             }
 
-            public List<TextBlock> textBlocks = new List<TextBlock>();
-            public List<Line> lines = new List<Line>();
+            public TextBlock FirstSelected()
+            {
+                return textBlocks.Count > 0 ? textBlocks[0] : null;
+            }
+
+            public void ReSelect(int i, SelectType type)
+            {
+                if (i < textBlocks.Count)
+                    (textBlocks[i].Parent as Border).BorderBrush = brushes[(int)type];
+            }
+
+            List<TextBlock> textBlocks = new List<TextBlock>();
+            List<Line> lines = new List<Line>();
             Brush[] brushes = new Brush[]{ Brushes.Red, Brushes.DarkOrange, Brushes.Green };
         }
 
@@ -302,10 +313,10 @@ namespace CxxDependencyVisualizer
             TextBlock lastTextBlock = null;
 
             if (Keyboard.IsKeyDown(Key.LeftShift)
-                && activeControls.textBlocks.Count > 0
-                && textBlock != activeControls.textBlocks[0])
+                && activeControls.FirstSelected() != null
+                && textBlock != activeControls.FirstSelected())
             {
-                lastTextBlock = activeControls.textBlocks[0];
+                lastTextBlock = activeControls.FirstSelected();
             }
 
             activeControls.Reset(data);
@@ -364,6 +375,8 @@ namespace CxxDependencyVisualizer
                         if (ip >= 0 && ip < d.childrenLines.Count) // just in case
                             activeControls.Select(d.childrenLines[ip], selectedType);
                     }
+
+                    activeControls.ReSelect(1, selectedType);
                 }
             }
         }
