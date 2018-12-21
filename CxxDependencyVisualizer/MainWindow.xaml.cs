@@ -247,81 +247,97 @@ namespace CxxDependencyVisualizer
             }
         }
 
-        List<TextBlock> textBlocksActive = new List<TextBlock>();
-        List<Line> linesActive = new List<Line>();
+        class ActiveControls
+        {
+            public void Reset(LibData data)
+            {
+                foreach (var tb in textBlocks)
+                {
+                    var d = data.dict[tb.DataContext as string];
+
+                    Border borderActive = tb.Parent as Border;
+                    borderActive.BorderThickness = new Thickness(1);
+                    if (d.important)
+                        borderActive.BorderBrush = Brushes.Blue;
+                    else
+                        borderActive.BorderBrush = Brushes.Black;
+                }
+                foreach (var line in lines)
+                {
+                    line.Stroke = Brushes.DarkGray;
+                    line.StrokeThickness = 1;
+                    line.Visibility = Visibility.Hidden;
+                }
+                textBlocks.Clear();
+                lines.Clear();
+            }
+
+            public enum SelectType { Selected = 0, Child = 1, Parent = 2 };
+
+            public void Select(TextBlock textBlock, SelectType type)
+            {
+                var border = textBlock.Parent as Border;
+                border.BorderBrush = brushes[(int)type];
+                border.BorderThickness = new Thickness(2);
+                textBlocks.Add(textBlock);
+            }
+
+            public void Select(Line line, SelectType type)
+            {
+                line.Stroke = brushes[(int)type];
+                line.StrokeThickness = 2;
+                line.Visibility = Visibility.Visible;
+                lines.Add(line);
+            }
+
+            public List<TextBlock> textBlocks = new List<TextBlock>();
+            public List<Line> lines = new List<Line>();
+            Brush[] brushes = new Brush[]{ Brushes.Red, Brushes.DarkOrange, Brushes.Green };
+        }
+
+        ActiveControls activeControls = new ActiveControls();
         private void TextBlock_MouseDown(object sender, MouseButtonEventArgs e)
         {
             var textBlock = sender as TextBlock;
             TextBlock lastTextBlock = null;
 
             if (Keyboard.IsKeyDown(Key.LeftShift)
-                && textBlocksActive.Count > 0
-                && textBlock != textBlocksActive[0])
+                && activeControls.textBlocks.Count > 0
+                && textBlock != activeControls.textBlocks[0])
             {
-                lastTextBlock = textBlocksActive[0];
+                lastTextBlock = activeControls.textBlocks[0];
             }
 
-            foreach (var tb in textBlocksActive)
-            {
-                var d = data.dict[tb.DataContext as string];
-
-                Border borderActive = tb.Parent as Border;
-                borderActive.BorderThickness = new Thickness(1);
-                if (d.important)
-                    borderActive.BorderBrush = Brushes.Blue;
-                else
-                    borderActive.BorderBrush = Brushes.Black;
-            }
-            foreach (var line in linesActive)
-            {
-                line.Stroke = Brushes.DarkGray;
-                line.StrokeThickness = 1;
-                line.Visibility = Visibility.Hidden;
-            }
-
-            textBlocksActive.Clear();
-            linesActive.Clear();
-
+            activeControls.Reset(data);
+            
             if (lastTextBlock != null)
-            {
-                var lastBorder = lastTextBlock.Parent as Border;
-                lastBorder.BorderThickness = new Thickness(2);
-                lastBorder.BorderBrush = Brushes.Red;
-                textBlocksActive.Add(lastTextBlock);
-            }
+                activeControls.Select(lastTextBlock, ActiveControls.SelectType.Selected);
 
-            var border = textBlock.Parent as Border;
-            border.BorderThickness = new Thickness(2);
-            border.BorderBrush = Brushes.Red;
-            textBlocksActive.Add(textBlock);
+            activeControls.Select(textBlock, ActiveControls.SelectType.Selected);
 
             // select chldren and parents
             if (lastTextBlock == null)
             {
-                foreach (var line in data.dict[textBlock.DataContext as string].childrenLines)
-                {
-                    line.Stroke = Brushes.Red;
-                    line.StrokeThickness = 2;
-                    line.Visibility = Visibility.Visible;
-                    linesActive.Add(line);
-                }
-
-                foreach (var line in data.dict[textBlock.DataContext as string].parentsLines)
-                {
-                    line.Stroke = Brushes.Green;
-                    line.StrokeThickness = 2;
-                    line.Visibility = Visibility.Visible;
-                    linesActive.Add(line);
-                }
+                var d = data.dict[textBlock.DataContext as string];
+                foreach (var c in d.children)
+                    activeControls.Select(data.dict[c].textBlock, ActiveControls.SelectType.Child);
+                foreach (var p in d.parents)
+                    activeControls.Select(data.dict[p].textBlock, ActiveControls.SelectType.Parent);
+                foreach (var line in d.childrenLines)
+                    activeControls.Select(line, ActiveControls.SelectType.Child);
+                foreach (var line in d.parentsLines)
+                    activeControls.Select(line, ActiveControls.SelectType.Parent);
             }
             // find and select path
             else
             {
+                ActiveControls.SelectType selectedType = ActiveControls.SelectType.Child;
                 List<string> path = FindPath(lastTextBlock.DataContext as string,
                                              textBlock.DataContext as string,
                                              data.dict);
                 if (path.Count == 0)
                 {
+                    selectedType = ActiveControls.SelectType.Parent;
                     path = FindPath(textBlock.DataContext as string,
                                     lastTextBlock.DataContext as string,
                                     data.dict);
@@ -330,39 +346,23 @@ namespace CxxDependencyVisualizer
 
                 if (path.Count > 1)
                 {
-                    for (int i = 0; i < path.Count; ++i)
+                    // always iterate from child to parent because currently
+                    //   childrenLines are synchronized with children
+                    //   but parentsLines are not synchronized with parents
+                    //   and below children are searched to find line
+                    // without first
+                    for (int i = path.Count - 2; i >= 0; --i)
                     {
-                        // always iterate from child to parent because currently
-                        //   childrenLines are synchronized with children
-                        //   but parentsLines are not synchronized with parents
-                        //   and below children are searched to find line
-                        int idPrev = path.Count - i;
-                        int id = idPrev - 1;
-
-                        var d = data.dict[path[id]];
+                        var d = data.dict[path[i]];
                         // intermediate index
                         // edge borders are already handled
-                        if (0 < i && i < path.Count - 1)
-                        {
-                            d.border.BorderThickness = new Thickness(2);
-                            d.border.BorderBrush = Brushes.Red;
-                            textBlocksActive.Add(d.textBlock);
-                        }
-                        // without first
+                        if (i > 0)
+                            activeControls.Select(d.textBlock, selectedType);
+
                         // handle lines from previous (parent) to child (current)
-                        if (0 < i)
-                        {
-                            Line line = null;
-                            int ip = d.children.IndexOf(path[idPrev]);
-                            if (ip >= 0 && ip < d.childrenLines.Count) // just in case
-                            {
-                                line = d.childrenLines[ip];
-                                line.Stroke = Brushes.Red;
-                                line.StrokeThickness = 2;
-                                line.Visibility = Visibility.Visible;
-                                linesActive.Add(line);
-                            }
-                        }
+                        int ip = d.children.IndexOf(path[i + 1]);
+                        if (ip >= 0 && ip < d.childrenLines.Count) // just in case
+                            activeControls.Select(d.childrenLines[ip], selectedType);
                     }
                 }
             }
