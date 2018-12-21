@@ -189,7 +189,8 @@ namespace CxxDependencyVisualizer
                     line.X2 = xC;
                     line.Y2 = yC;
                     line.Stroke = Brushes.DarkGray;
-                    line.Visibility = Visibility.Hidden;
+                    line.StrokeThickness = 1;
+                    //line.Visibility = Visibility.Hidden;
 
                     d.Value.childrenLines.Add(line);
 
@@ -274,7 +275,8 @@ namespace CxxDependencyVisualizer
             foreach (var line in linesActive)
             {
                 line.Stroke = Brushes.DarkGray;
-                line.Visibility = Visibility.Hidden;
+                line.StrokeThickness = 1;
+                //line.Visibility = Visibility.Hidden;
             }
 
             textBlocksActive.Clear();
@@ -291,6 +293,7 @@ namespace CxxDependencyVisualizer
                 foreach (var line in data.dict[textBlock.DataContext as string].childrenLines)
                 {
                     line.Stroke = Brushes.Red;
+                    line.StrokeThickness = 2;
                     line.Visibility = Visibility.Visible;
                     linesActive.Add(line);
                 }
@@ -298,6 +301,7 @@ namespace CxxDependencyVisualizer
                 foreach (var line in data.dict[textBlock.DataContext as string].parentsLines)
                 {
                     line.Stroke = Brushes.Green;
+                    line.StrokeThickness = 2;
                     line.Visibility = Visibility.Visible;
                     linesActive.Add(line);
                 }
@@ -313,7 +317,51 @@ namespace CxxDependencyVisualizer
                 List<string> path = FindPath(lastTextBlock.DataContext as string,
                                              textBlock.DataContext as string,
                                              data.dict);
-                int a = 1;
+                if (path.Count == 0)
+                {
+                    path = FindPath(textBlock.DataContext as string,
+                                    lastTextBlock.DataContext as string,
+                                    data.dict);
+                    
+                }
+
+                if (path.Count > 1)
+                {
+                    for (int i = 0; i < path.Count; ++i)
+                    {
+                        // always iterate from child to parent because currently
+                        //   childrenLines are synchronized with children
+                        //   but parentsLines are not synchronized with parents
+                        //   and below children are searched to find line
+                        int idPrev = path.Count - i;
+                        int id = idPrev - 1;
+
+                        var d = data.dict[path[id]];
+                        // intermediate index
+                        // edge borders are already handled
+                        if (0 < i && i < path.Count - 1)
+                        {
+                            d.border.BorderThickness = new Thickness(2);
+                            d.border.BorderBrush = Brushes.Red;
+                            textBlocksActive.Add(d.textBlock);
+                        }
+                        // without first
+                        // handle lines from previous (parent) to child (current)
+                        if (0 < i)
+                        {
+                            Line line = null;
+                            int ip = d.children.IndexOf(path[idPrev]);
+                            if (ip >= 0 && ip < d.childrenLines.Count) // just in case
+                            {
+                                line = d.childrenLines[ip];
+                                line.Stroke = Brushes.Red;
+                                line.StrokeThickness = 2;
+                                line.Visibility = Visibility.Visible;
+                                linesActive.Add(line);
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -680,16 +728,76 @@ namespace CxxDependencyVisualizer
             }
         }
 
-        private static List<string> FindPath(string n1, string n2,
+        private static List<string> FindPath(string start, string end,
                                              Dictionary<string, IncludeData> dict)
         {
             List<string> result = new List<string>();
-            
-            // TODO
-
+            Dictionary<string, int> map = new Dictionary<string, int>();
+            map.Add(start, 0);
+            FindPath(start, start, end, dict, map, result);
             return result;
         }
 
+        private static bool FindPath(string start, string curr, string end,
+                                     Dictionary<string, IncludeData> dict,
+                                     Dictionary<string, int> map,
+                                     List<string> result)
+        {
+            if (curr == end)
+            {
+                return TrackPathBack(curr, start, dict, map, result);
+            }
+
+            var neighbors = dict[curr].children;
+            var l = map[curr];
+            List<string> updated = new List<string>();
+            foreach (var n in neighbors)
+                if (Update(map, n, l + 1))
+                    updated.Add(n);
+            foreach (var n in updated)
+                if (FindPath(start, n, end, dict, map, result))
+                    return true;
+            return false;
+        }
+
+        private static bool TrackPathBack(string curr, string start,
+                                          Dictionary<string, IncludeData> dict,
+                                          Dictionary<string, int> map,
+                                          List<string> result)
+        {
+            if (curr == start)
+            {
+                result.Add(curr);
+                return true;
+            }
+
+            var l = map[curr];
+            var neighbors = dict[curr].parents;
+            foreach (var n in neighbors)
+                if (map.ContainsKey(n) && map[n] < l)
+                    if (TrackPathBack(n, start, dict, map, result))
+                    {
+                        result.Add(curr);
+                        return true;
+                    }
+            return false;
+        }
+
+        private static bool Update(Dictionary<string, int> map, string n, int l)
+        {
+            if (!map.ContainsKey(n))
+            {
+                map.Add(n, l);
+                return true;
+            }
+            else if (l < map[n])
+            {
+                map[n] = l;
+                return true;
+            }
+            return false;
+        }
+        
         private static string Path(string dir, string file)
         {
             string d = dir.Replace('/', '\\');
