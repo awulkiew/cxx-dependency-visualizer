@@ -190,7 +190,7 @@ namespace CxxDependencyVisualizer
                     line.Y2 = yC;
                     line.Stroke = Brushes.DarkGray;
                     line.StrokeThickness = 1;
-                    //line.Visibility = Visibility.Hidden;
+                    line.Visibility = Visibility.Hidden;
 
                     d.Value.childrenLines.Add(line);
 
@@ -276,7 +276,7 @@ namespace CxxDependencyVisualizer
             {
                 line.Stroke = Brushes.DarkGray;
                 line.StrokeThickness = 1;
-                //line.Visibility = Visibility.Hidden;
+                line.Visibility = Visibility.Hidden;
             }
 
             textBlocksActive.Clear();
