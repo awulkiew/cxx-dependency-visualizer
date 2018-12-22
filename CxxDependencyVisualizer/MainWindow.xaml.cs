@@ -258,7 +258,7 @@ namespace CxxDependencyVisualizer
 
         class ActiveControls
         {
-            public void Reset(LibData data)
+            public void Reset(Canvas canvas, LibData data)
             {
                 foreach (var tb in textBlocks)
                 {
@@ -279,6 +279,12 @@ namespace CxxDependencyVisualizer
                 }
                 textBlocks.Clear();
                 lines.Clear();
+
+                foreach(var shape in shapes)
+                {
+                    canvas.Children.Remove(shape);
+                }
+                shapes.Clear();
             }
 
             public enum SelectType { Selected = 0, Child = 1, Parent = 2 };
@@ -299,6 +305,29 @@ namespace CxxDependencyVisualizer
                 lines.Add(line);
             }
 
+            public void Add(Canvas canvas, Shape shape)
+            {
+                int brushId = shapes.Count;
+                Brush brush = null;
+                if (brushId < brushes2.Length)
+                {
+                    brush = brushes2[brushId];
+                }
+                else
+                {
+                    Random r = new Random();
+                    brush = new SolidColorBrush(Color.FromRgb((byte)r.Next(64, 192),
+                                                              (byte)r.Next(64, 192),
+                                                              (byte)r.Next(64, 192)));
+                }
+
+                shape.Stroke = brush;
+                shape.StrokeThickness = 2;
+                shapes.Add(shape);
+
+                canvas.Children.Add(shape);
+            }
+
             public TextBlock FirstSelected()
             {
                 return textBlocks.Count > 0 ? textBlocks[0] : null;
@@ -312,7 +341,9 @@ namespace CxxDependencyVisualizer
 
             List<TextBlock> textBlocks = new List<TextBlock>();
             List<Line> lines = new List<Line>();
+            List<Shape> shapes = new List<Shape>();
             Brush[] brushes = new Brush[]{ Brushes.Red, Brushes.DarkOrange, Brushes.Green };
+            Brush[] brushes2 = new Brush[] { Brushes.Red, Brushes.Green, Brushes.Blue, Brushes.DarkOrange, Brushes.DarkCyan, Brushes.DarkMagenta};
         }
 
         ActiveControls activeControls = new ActiveControls();
@@ -328,7 +359,7 @@ namespace CxxDependencyVisualizer
                 lastTextBlock = activeControls.FirstSelected();
             }
 
-            activeControls.Reset(data);
+            activeControls.Reset(canvas, data);
             
             if (lastTextBlock != null)
                 activeControls.Select(lastTextBlock, ActiveControls.SelectType.Selected);
@@ -445,7 +476,7 @@ namespace CxxDependencyVisualizer
 
         private void MenuItemCycles_Click(object sender, RoutedEventArgs e)
         {
-            activeControls.Reset(data);
+            activeControls.Reset(canvas, data);
 
             List<List<string>> cycles = new List<List<string>>();
             foreach (var d in data.dict)
@@ -463,6 +494,7 @@ namespace CxxDependencyVisualizer
             // sort cycles by name to compare between them and reject already added
             if (cycles.Count > 0)
             {
+                /*
                 string message = "Found cycles {" + cycles.Count.ToString() + "}:";
                 int ci = 1;
                 foreach (var cycle in cycles)
@@ -471,25 +503,53 @@ namespace CxxDependencyVisualizer
                     foreach (var h in cycle)
                         message += "\r\n" + h;
                 }
-
-                foreach (var cycle in cycles)
+                */
+                for (int i = 0; i < cycles.Count; ++i)
                 {
-                    var prev = data.dict[cycle[cycle.Count - 1]];
+                    PathGeometry pathGeom = new PathGeometry();
+                    
+                    var cycle = cycles[i];
+                    var back = cycle[cycle.Count - 1];
+                    var prev = data.dict[back];
                     foreach(var s in cycle)
                     {
                         var curr = data.dict[s];
                         activeControls.Select(curr.textBlock, ActiveControls.SelectType.Selected);
-                        int id = prev.children.IndexOf(s);
-                        if (id >= 0)
-                            activeControls.Select(prev.childrenLines[id], ActiveControls.SelectType.Selected);
+
+                        PathFigure fig = new PathFigure();
+                        fig.StartPoint = prev.center;
+                        QuadraticBezierSegment seg = new QuadraticBezierSegment();
+                        seg.Point1 = CalculateBezierPoint(prev.center, curr.center, i, 25.0);
+                        seg.Point2 = curr.center;
+                        fig.Segments.Add(seg);
+                        pathGeom.Figures.Add(fig);
+
                         prev = curr;
                     }
+
+                    System.Windows.Shapes.Path path = new System.Windows.Shapes.Path();
+                    path.Data = pathGeom;
+                    activeControls.Add(canvas, path);
                 }
 
-                MessageBox.Show(message, "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+                //MessageBox.Show(message, "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
-            else
-                MessageBox.Show("No cycles found.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
+            //else
+            //    MessageBox.Show("No cycles found.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private Point CalculateBezierPoint(Point p1, Point p2, int i, double dist)
+        {
+            double x = p1.X + 0.5 * (p2.X - p1.X);
+            double y = p1.Y + 0.5 * (p2.Y - p1.Y);
+            if (i <= 0)
+                return new Point(x, y);
+            double l = Math.Sqrt(x * x + y * y);
+            double x2 = x / l;
+            double y2 = y / l;
+            int sign = i % 2 != 0 ? 1 : -1;
+            double d = dist * (i + 1) / 2;
+            return new Point(x - sign * d * x2, y + sign * d * y2);
         }
 
         private void canvasGrid_MouseWheel(object sender, MouseWheelEventArgs e)
