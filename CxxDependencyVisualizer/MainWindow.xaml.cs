@@ -134,7 +134,7 @@ namespace CxxDependencyVisualizer
                 minY = Math.Min(minY, d.Value.position.y);
                 maxX = Math.Max(maxX, d.Value.position.x);
                 maxY = Math.Max(maxY, d.Value.position.y);
-                if (d.Value.border == null || d.Value.textBlock == null)
+                if (d.Value.textBlock == null)
                 {
                     TextBlock textBlock = new TextBlock();
                     if (d.Value.duplicatedChildren)
@@ -161,7 +161,6 @@ namespace CxxDependencyVisualizer
                     border.Child = textBlock;
 
                     d.Value.textBlock = textBlock;
-                    d.Value.border = border;
                 }
                 maxSize = Math.Max(maxSize, Math.Max(d.Value.textBlock.Width, d.Value.textBlock.Height));
             }
@@ -173,20 +172,25 @@ namespace CxxDependencyVisualizer
             double graphHeight = cellSize* graphH;
             double xOrig = graphWidth / 2;
             double yOrig = 0;
+            foreach (var d in data.dict)
+            {
+                d.Value.center.X = xOrig + d.Value.position.x * cellSize;
+                d.Value.center.Y = yOrig + d.Value.position.y * cellSize;
+            }
 
             canvas.Children.Clear();
 
             foreach (var d in data.dict)
             {
-                double x = xOrig + d.Value.position.x * cellSize;
-                double y = yOrig + d.Value.position.y * cellSize;
+                double x = d.Value.center.X;
+                double y = d.Value.center.Y;
 
                 foreach (var cStr in d.Value.children)
                 {
                     var c = data.dict[cStr];
 
-                    double xC = xOrig + c.position.x * cellSize;
-                    double yC = yOrig + c.position.y * cellSize;
+                    double xC = c.center.X;
+                    double yC = c.center.Y;
 
                     var line = new Line();
                     line.X1 = x;
@@ -207,15 +211,14 @@ namespace CxxDependencyVisualizer
 
             foreach (var d in data.dict)
             {
-                double x = xOrig + d.Value.position.x * cellSize;
-                double y = yOrig + d.Value.position.y * cellSize;
-                double l = x - d.Value.textBlock.Width / 2;
-                double t = y - d.Value.textBlock.Height / 2;
+                double l = d.Value.center.X - d.Value.textBlock.Width / 2;
+                double t = d.Value.center.Y - d.Value.textBlock.Height / 2;
+                
+                Border border = d.Value.textBlock.Parent as Border;
+                Canvas.SetLeft(border, l);
+                Canvas.SetTop(border, t);
 
-                Canvas.SetLeft(d.Value.border, l);
-                Canvas.SetTop(d.Value.border, t);
-
-                canvas.Children.Add(d.Value.border);
+                canvas.Children.Add(border);
             }
 
             double scaleW = Math.Min(canvasGrid.ActualWidth / graphWidth, 1);
@@ -235,8 +238,9 @@ namespace CxxDependencyVisualizer
             {
                 if (!Empty(textBoxFind.Text) && d.Key.IndexOf(textBoxFind.Text) >= 0)
                 {
-                    double xFound = Canvas.GetLeft(d.Value.border);
-                    double yFound = Canvas.GetTop(d.Value.border);
+                    Border border = d.Value.textBlock.Parent as Border;
+                    double xFound = Canvas.GetLeft(border);
+                    double yFound = Canvas.GetTop(border);
                     Point gridCenter = new Point(canvasGrid.ActualWidth / 2, canvasGrid.ActualHeight / 2);
                     Point atCanvas = canvasGrid.TranslatePoint(gridCenter, canvas);
                     
@@ -668,7 +672,7 @@ namespace CxxDependencyVisualizer
             public bool duplicatedChildren = false;
 
             public PointI position = null;
-            public Border border = null;
+            public Point center;
             public TextBlock textBlock = null;
             public List<Line> childrenLines = new List<Line>();
             public List<Line> parentsLines = new List<Line>();
