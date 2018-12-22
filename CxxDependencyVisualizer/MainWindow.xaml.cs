@@ -147,9 +147,13 @@ namespace CxxDependencyVisualizer
                     textBlock.Width = s.Width + 10;
                     textBlock.Height = s.Height + 10;
                     textBlock.DataContext = d.Key;
-                    textBlock.ToolTip = d.Key
-                                      + "\r\nLevels: [" + d.Value.minLevel + ", " + d.Value.maxLevel + "]"
-                                      + (d.Value.duplicatedChildren ? "\r\nWARNING: duplicated includes" : "");
+                    string tooltip = d.Key
+                                   + "\r\nLevels: [" + d.Value.minLevel + ", " + d.Value.maxLevel + "]"
+                                   + (d.Value.duplicatedChildren ? "\r\nWARNING: duplicated includes" : "")
+                                   + "\r\n";
+                    foreach (var c in d.Value.children)
+                        tooltip += "\r\n" + c;
+                    textBlock.ToolTip = tooltip;
                     textBlock.MouseDown += TextBlock_MouseDown;
 
                     Border border = new Border();
