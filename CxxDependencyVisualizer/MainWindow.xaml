@@ -17,12 +17,21 @@
                 <ColumnDefinition Width="1*" />
                 <ColumnDefinition Width="1*" />
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <TextBox Grid.Column="0" x:Name="textBoxDir" Height="23" TextWrapping="NoWrap"
                      Text="D:\lib\modular-boost\libs\geometry\include" />
             <TextBox Grid.Column="1" x:Name="textBoxFile" Height="23" TextWrapping="NoWrap"
                      Text="boost/geometry.hpp" />
-            <Button Grid.Column="2" x:Name="buttonAnalyze" Content="Analyze" Width="75" Height="23"
+            <Menu Grid.Column="2">
+                <MenuItem Header="=">
+                    <MenuItem x:Name="menu_Layout1" IsCheckable="True" Header="Layout 1" IsChecked="True" />
+                    <MenuItem x:Name="menu_Layout2" IsCheckable="True" Header="Layout 2" IsChecked="False" />
+                    <MenuItem x:Name="menu_Layout3" IsCheckable="True" Header="Layout 3" IsChecked="False" />
+                    <MenuItem x:Name="menu_Layout4" IsCheckable="True" Header="Layout 4" IsChecked="False" />
+                </MenuItem>
+            </Menu>
+            <Button Grid.Column="3" x:Name="buttonAnalyze" Content="Analyze" Width="75" Height="23"
                     Click="buttonAnalyze_Click"/>
         </Grid>
         <Grid Grid.Row="1" x:Name="canvasGrid" ClipToBounds="True" Background="White"

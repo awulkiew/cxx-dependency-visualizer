@@ -30,6 +30,52 @@ namespace CxxDependencyVisualizer
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             this.WindowState = WindowState.Maximized;
+
+            menu_Layout1.Checked += menu_Layout_Checked;
+            menu_Layout2.Checked += menu_Layout_Checked;
+            menu_Layout3.Checked += menu_Layout_Checked;
+            menu_Layout4.Checked += menu_Layout_Checked;
+            menu_Layout1.Unchecked += menu_Layout_Unchecked;
+            menu_Layout2.Unchecked += menu_Layout_Unchecked;
+            menu_Layout3.Unchecked += menu_Layout_Unchecked;
+            menu_Layout4.Unchecked += menu_Layout_Unchecked;
+        }
+
+        private void menu_Layout_Checked(object sender, RoutedEventArgs e)
+        {
+            var menuItem = sender as MenuItem;
+            if (menuItem != menu_Layout1 && menu_Layout1 != null)
+            {
+                menu_Layout1.Unchecked -= menu_Layout_Unchecked;
+                menu_Layout1.IsChecked = false;
+                menu_Layout1.Unchecked += menu_Layout_Unchecked;
+            }
+            if (menuItem != menu_Layout2 && menu_Layout2 != null)
+            {
+                menu_Layout2.Unchecked -= menu_Layout_Unchecked;
+                menu_Layout2.IsChecked = false;
+                menu_Layout2.Unchecked += menu_Layout_Unchecked;
+            }
+            if (menuItem != menu_Layout3 && menu_Layout3 != null)
+            {
+                menu_Layout3.Unchecked -= menu_Layout_Unchecked;
+                menu_Layout3.IsChecked = false;
+                menu_Layout3.Unchecked += menu_Layout_Unchecked;
+            }
+            if (menuItem != menu_Layout4 && menu_Layout4 != null)
+            {
+                menu_Layout4.Unchecked -= menu_Layout_Unchecked;
+                menu_Layout4.IsChecked = false;
+                menu_Layout4.Unchecked += menu_Layout_Unchecked;
+            }
+        }
+
+        private void menu_Layout_Unchecked(object sender, RoutedEventArgs e)
+        {
+            var menuItem = sender as MenuItem;
+            menuItem.Checked -= menu_Layout_Checked;
+            menuItem.IsChecked = true;
+            menuItem.Checked += menu_Layout_Checked;
         }
 
         LibData data = new LibData();
@@ -40,7 +86,17 @@ namespace CxxDependencyVisualizer
         private void buttonAnalyze_Click(object sender, RoutedEventArgs e)
         {
             //textBlockStatus.Text = "Processing...";
-            
+
+            // Clear states
+            activeControls.Reset(canvas, data);
+            canvas.Children.Clear();
+
+            graphCreation = menu_Layout1.IsChecked ? GraphCreation.LevelMin
+                          : menu_Layout2.IsChecked ? GraphCreation.LevelMax
+                          : menu_Layout3.IsChecked ? GraphCreation.LevelMinClosestParent
+                          : menu_Layout4.IsChecked ? GraphCreation.LevelMaxClosestParent
+                          : GraphCreation.LevelMin;
+
             // Analyze includes and create dictionary
             data = new LibData(textBoxDir.Text, textBoxFile.Text, true);
 
@@ -210,9 +266,6 @@ namespace CxxDependencyVisualizer
                 d.Value.center.X = xOrig + d.Value.position.x * cellSize;
                 d.Value.center.Y = yOrig + d.Value.position.y * cellSize;
             }
-
-            // clear canvas
-            canvas.Children.Clear();
 
             // add all lines - connections between includes
             foreach (var d in data.dict)
