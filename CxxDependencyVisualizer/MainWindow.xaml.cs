@@ -34,95 +34,122 @@ namespace CxxDependencyVisualizer
 
         LibData data = new LibData();
 
+        enum GraphCreation { LevelMin, LevelMax, LevelMinClosestParent, LevelMaxClosestParent };
+        GraphCreation graphCreation = GraphCreation.LevelMin;
+
         private void buttonAnalyze_Click(object sender, RoutedEventArgs e)
         {
             //textBlockStatus.Text = "Processing...";
             
+            // Analyze includes and create dictionary
             data = new LibData(textBoxDir.Text, textBoxFile.Text, true);
 
-            List<int> counts = new List<int>();
-            foreach (var l in data.levels)
-                counts.Add(l.Count());
-            counts.Sort();
-            int medianCount = counts.Count > 0
-                            ? counts[counts.Count / 2]
-                            : 0;
-            for (; ; )
+            // Generate containers of levels of inclusion (min or max level found).
+            List<List<string>> levels = new List<List<string>>();
+            bool useMax = graphCreation == GraphCreation.LevelMax
+                       || graphCreation == GraphCreation.LevelMaxClosestParent;
+            foreach (var include in data.dict)
             {
-                bool allSet = true;
-                int y = 0;
-                for (int i = 0; i < data.LevelsCount(); ++i)
-                {
-                    List<string> lvl = data.Level(i);
-                    int x = 0;
-                    int remaining = lvl.Count;
-                    for (int j = 0; j < lvl.Count; ++j)
-                    {
-                        var d = data.dict[lvl[j]];
-                        if (x >= medianCount)
-                        {
-                            ++y;
-                            x = 0;
-                            remaining -= medianCount;
-                        }
-
-                        int shift = Math.Min(medianCount, remaining) - 1;
-                        d.position = new PointI(-shift / 2 + x, y);
-                        ++x;
-                    }
-                    ++y;
-                }
-
-                if (allSet)
-                    break;
+                int level = useMax
+                          ? include.Value.maxLevel
+                          : include.Value.minLevel;
+                for (int i = levels.Count; i < level + 1; ++i)
+                    levels.Add(new List<string>());
+                levels[level].Add(include.Key);
             }
 
-            /*
-            PointI rootPos = new PointI(0, 0);
-            data.dict[Path(textBoxDir.Text, textBoxFile.Text)].position = rootPos;
-            HashSet<PointI> pointsSet = new HashSet<PointI>();
-            pointsSet.Add(rootPos);
-            for (; ; )
+            // Creation algorithm 1
+            if (graphCreation == GraphCreation.LevelMin
+             || graphCreation == GraphCreation.LevelMax)
             {
-                bool allSet = true;
-                for (int i = 0; i < data.LevelsCount(); ++i)
+                List<int> counts = new List<int>();
+                foreach (var l in levels)
+                    counts.Add(l.Count());
+                counts.Sort();
+                int medianCount = counts.Count > 0
+                                ? counts[counts.Count / 2]
+                                : 0;
+                for (; ; )
                 {
-                    List<string> lvl = data.Level(i);
-                    for (int j = 0; j < lvl.Count; ++j)
+                    bool allSet = true;
+                    int y = 0;
+                    for (int i = 0; i < levels.Count; ++i)
                     {
-                        var d = data.dict[lvl[j]];
-                        if (d.position == null)
+                        List<string> lvl = levels[i];
+                        int x = 0;
+                        int remaining = lvl.Count;
+                        for (int j = 0; j < lvl.Count; ++j)
                         {
-                            // TODO average from all parents?
-                            PointI parentPos = null;
-                            foreach (var pStr in d.parents)
+                            var d = data.dict[lvl[j]];
+                            if (x >= medianCount)
                             {
-                                var p = data.dict[pStr];
-                                if (p.position != null)
-                                    parentPos = p.position;
+                                ++y;
+                                x = 0;
+                                remaining -= medianCount;
                             }
 
-                            if (parentPos == null)
+                            int shift = Math.Min(medianCount, remaining) - 1;
+                            d.position = new PointI(-shift / 2 + x, y);
+                            ++x;
+                        }
+                        ++y;
+                    }
+
+                    if (allSet)
+                        break;
+                }
+            }
+            // Creation algorithm 2
+            else if (graphCreation == GraphCreation.LevelMinClosestParent
+                  || graphCreation == GraphCreation.LevelMaxClosestParent)
+            {
+                PointI rootPos = new PointI(0, 0);
+                data.dict[Path(textBoxDir.Text, textBoxFile.Text)].position = rootPos;
+                HashSet<PointI> pointsSet = new HashSet<PointI>();
+                pointsSet.Add(rootPos);
+                for (; ; )
+                {
+                    bool allSet = true;
+                    for (int i = 0; i < levels.Count; ++i)
+                    {
+                        List<string> lvl = levels[i];
+                        for (int j = 0; j < lvl.Count; ++j)
+                        {
+                            var d = data.dict[lvl[j]];
+                            if (d.position == null)
                             {
-                                allSet = false;
-                            }
-                            else
-                            {
-                                PositionFeed feed = new PositionFeed(parentPos);
-                                PointI pt = feed.Next();
-                                for (; pointsSet.Contains(pt); pt = feed.Next()) ;
-                                pointsSet.Add(pt);
-                                d.position = pt;
+                                // TODO average from all parents?
+                                PointI parentPos = null;
+                                foreach (var pStr in d.parents)
+                                {
+                                    var p = data.dict[pStr];
+                                    if (p.position != null)
+                                        parentPos = p.position;
+                                }
+
+                                if (parentPos == null)
+                                {
+                                    allSet = false;
+                                }
+                                else
+                                {
+                                    PositionFeed feed = new PositionFeed(parentPos);
+                                    PointI pt = feed.Next();
+                                    for (; pointsSet.Contains(pt); pt = feed.Next()) ;
+                                    pointsSet.Add(pt);
+                                    d.position = pt;
+                                }
                             }
                         }
                     }
+
+                    if (allSet)
+                        break;
                 }
-
-                if (allSet)
-                    break;
             }
-            */
 
+            // Create textBlocks with borders for each include and calculate
+            // bounding box in graph grid coordinates
             int minX = int.MaxValue;
             int minY = int.MaxValue;
             int maxX = int.MinValue;
@@ -169,6 +196,8 @@ namespace CxxDependencyVisualizer
                 maxSize = Math.Max(maxSize, Math.Max(d.Value.textBlock.Width, d.Value.textBlock.Height));
             }
 
+            // Calculate the size of graph in canvas coordinates
+            // from bounding box in graph grid coordinates
             int graphW = maxX - minX;
             int graphH = maxY - minY;
             double cellSize = maxSize;
@@ -182,8 +211,10 @@ namespace CxxDependencyVisualizer
                 d.Value.center.Y = yOrig + d.Value.position.y * cellSize;
             }
 
+            // clear canvas
             canvas.Children.Clear();
 
+            // add all lines - connections between includes
             foreach (var d in data.dict)
             {
                 double x = d.Value.center.X;
@@ -213,6 +244,7 @@ namespace CxxDependencyVisualizer
                 }
             }
 
+            // add all textBoxes with borders
             foreach (var d in data.dict)
             {
                 double l = d.Value.center.X - d.Value.textBlock.Width / 2;
@@ -225,6 +257,7 @@ namespace CxxDependencyVisualizer
                 canvas.Children.Add(border);
             }
 
+            // calculate the scale of graph in order to fit it to window
             double scaleW = Math.Min(canvasGrid.ActualWidth / graphWidth, 1);
             double scaleH = Math.Min(canvasGrid.ActualHeight / graphHeight, 1);
             double scale = Math.Min(scaleW, scaleH);
@@ -751,7 +784,6 @@ namespace CxxDependencyVisualizer
             {
                 rootPath = Path(dir, file);
                 Analyze(dir, rootPath, null, fromLibOnly, 0, dict);
-                FillLevels(dict, levels);
             }
 
             public List<string> ChildrenOf(string path)
@@ -773,19 +805,8 @@ namespace CxxDependencyVisualizer
                 return rootPath;
             }
 
-            public int LevelsCount()
-            {
-                return levels.Count;
-            }
-
-            public List<string> Level(int i)
-            {
-                return levels[i];
-            }
-
             public string rootPath = "";
             public Dictionary<string, IncludeData> dict = new Dictionary<string, IncludeData>();
-            public List<List<string>> levels = new List<List<string>>();
         }
 
         class Grid
@@ -879,21 +900,6 @@ namespace CxxDependencyVisualizer
 
             List<YEntry> xData = new List<YEntry>();
             int xBegin = 0;
-        }
-
-        private static void Add(List<List<string>> levels, string path, int level)
-        {
-            for (int i = levels.Count; i < level + 1; ++i)
-                levels.Add(new List<string>());
-            levels[level].Add(path);
-        }
-
-        private static void FillLevels(Dictionary<string, IncludeData> dict, List<List<string>> levels)
-        {
-            foreach(var include in dict)
-            {
-                Add(levels, include.Key, include.Value.minLevel);
-            }
         }
 
         private static void Analyze(string dir, string path, string parentPath, bool fromLibOnly, int level, Dictionary<string, IncludeData> dict)
