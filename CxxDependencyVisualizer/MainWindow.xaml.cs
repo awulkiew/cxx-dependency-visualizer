@@ -39,6 +39,8 @@ namespace CxxDependencyVisualizer
             menu_Layout2.Unchecked += menu_Layout_Unchecked;
             menu_Layout3.Unchecked += menu_Layout_Unchecked;
             menu_Layout4.Unchecked += menu_Layout_Unchecked;
+            menu_ShowLines.Checked += menu_ShowLines_Changed;
+            menu_ShowLines.Unchecked += menu_ShowLines_Changed;
         }
 
         private void menu_Layout_Checked(object sender, RoutedEventArgs e)
@@ -78,6 +80,16 @@ namespace CxxDependencyVisualizer
             menuItem.Checked += menu_Layout_Checked;
         }
 
+        private void menu_ShowLines_Changed(object sender, RoutedEventArgs e)
+        {
+            Visibility vis = menu_ShowLines.IsChecked
+                           ? Visibility.Visible
+                           : Visibility.Hidden;
+            foreach (var d in data.dict)
+                foreach (var l in d.Value.childrenLines)
+                    l.Visibility = vis;
+        }
+
         LibData data = new LibData();
 
         enum GraphCreation { LevelMin, LevelMax, LevelMinClosestParent, LevelMaxClosestParent };
@@ -88,7 +100,10 @@ namespace CxxDependencyVisualizer
             //textBlockStatus.Text = "Processing...";
 
             // Clear states
-            activeControls.Reset(canvas, data);
+            Visibility vis = menu_ShowLines.IsChecked
+                           ? Visibility.Visible
+                           : Visibility.Hidden;
+            activeControls.Reset(canvas, data, vis);
             canvas.Children.Clear();
 
             graphCreation = menu_Layout1.IsChecked ? GraphCreation.LevelMin
@@ -287,7 +302,7 @@ namespace CxxDependencyVisualizer
                     line.Y2 = yC;
                     line.Stroke = Brushes.DarkGray;
                     line.StrokeThickness = 1;
-                    line.Visibility = Visibility.Hidden;
+                    line.Visibility = vis;
 
                     d.Value.childrenLines.Add(line);
 
@@ -348,7 +363,7 @@ namespace CxxDependencyVisualizer
 
         class ActiveControls
         {
-            public void Reset(Canvas canvas, LibData data)
+            public void Reset(Canvas canvas, LibData data, Visibility linesVisibility)
             {
                 foreach (var tb in textBlocks)
                 {
@@ -365,7 +380,7 @@ namespace CxxDependencyVisualizer
                 {
                     line.Stroke = Brushes.DarkGray;
                     line.StrokeThickness = 1;
-                    line.Visibility = Visibility.Hidden;
+                    line.Visibility = linesVisibility;
                 }
                 textBlocks.Clear();
                 lines.Clear();
@@ -449,7 +464,10 @@ namespace CxxDependencyVisualizer
                 lastTextBlock = activeControls.FirstSelected();
             }
 
-            activeControls.Reset(canvas, data);
+            Visibility vis = menu_ShowLines.IsChecked
+                           ? Visibility.Visible
+                           : Visibility.Hidden;
+            activeControls.Reset(canvas, data, vis);
             
             if (lastTextBlock != null)
                 activeControls.Select(lastTextBlock, ActiveControls.SelectType.Selected);
@@ -566,7 +584,10 @@ namespace CxxDependencyVisualizer
 
         private void MenuItemCycles_Click(object sender, RoutedEventArgs e)
         {
-            activeControls.Reset(canvas, data);
+            Visibility vis = menu_ShowLines.IsChecked
+                           ? Visibility.Visible
+                           : Visibility.Hidden;
+            activeControls.Reset(canvas, data, vis);
 
             List<List<string>> cycles = new List<List<string>>();
             foreach (var d in data.dict)
