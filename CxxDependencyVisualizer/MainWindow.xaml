@@ -31,6 +31,22 @@
                     <MenuItem x:Name="menu_Layout4" IsCheckable="True" Header="Layout 4" IsChecked="False" />
                     <Separator />
                     <MenuItem x:Name="menu_ShowLines" IsCheckable="True" Header="Show Lines" IsChecked="False" />
+                    <Separator />
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Label Grid.Row="0" Content="Cycles Separation"/>
+                        <Grid Grid.Row="1">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="1*" />
+                            </Grid.ColumnDefinitions>
+                            <Label Width="32" x:Name="menu_CyclesLinesDistanceLabel" Grid.Column="0" Content="25"/>
+                            <Slider x:Name="menu_CyclesLinesDistanceSlider" Grid.Column="1" Minimum="10" Maximum="100" Value="25" />
+                        </Grid>
+                    </Grid>
                 </MenuItem>
             </Menu>
             <Button Grid.Column="3" x:Name="buttonAnalyze" Content="Analyze" Width="75" Height="23"

@@ -39,8 +39,7 @@ namespace CxxDependencyVisualizer
             menu_Layout2.Unchecked += menu_Layout_Unchecked;
             menu_Layout3.Unchecked += menu_Layout_Unchecked;
             menu_Layout4.Unchecked += menu_Layout_Unchecked;
-            menu_ShowLines.Checked += menu_ShowLines_Changed;
-            menu_ShowLines.Unchecked += menu_ShowLines_Changed;
+            menu_CyclesLinesDistanceSlider.ValueChanged += menu_CyclesLinesDistanceSlider_ValueChanged;
         }
 
         private void menu_Layout_Checked(object sender, RoutedEventArgs e)
@@ -80,14 +79,9 @@ namespace CxxDependencyVisualizer
             menuItem.Checked += menu_Layout_Checked;
         }
 
-        private void menu_ShowLines_Changed(object sender, RoutedEventArgs e)
+        private void menu_CyclesLinesDistanceSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            Visibility vis = menu_ShowLines.IsChecked
-                           ? Visibility.Visible
-                           : Visibility.Hidden;
-            foreach (var d in data.dict)
-                foreach (var l in d.Value.childrenLines)
-                    l.Visibility = vis;
+            menu_CyclesLinesDistanceLabel.Content = (int)menu_CyclesLinesDistanceSlider.Value;
         }
 
         LibData data = new LibData();
@@ -321,6 +315,7 @@ namespace CxxDependencyVisualizer
                 Border border = d.Value.textBlock.Parent as Border;
                 Canvas.SetLeft(border, l);
                 Canvas.SetTop(border, t);
+                Canvas.SetZIndex(border, 1);
 
                 canvas.Children.Add(border);
             }
@@ -605,16 +600,8 @@ namespace CxxDependencyVisualizer
             // sort cycles by name to compare between them and reject already added
             if (cycles.Count > 0)
             {
-                /*
-                string message = "Found cycles {" + cycles.Count.ToString() + "}:";
-                int ci = 1;
-                foreach (var cycle in cycles)
-                {
-                    message += "\r\n" + (ci++) + ":";
-                    foreach (var h in cycle)
-                        message += "\r\n" + h;
-                }
-                */
+                double dist = menu_CyclesLinesDistanceSlider.Value;
+
                 for (int i = 0; i < cycles.Count; ++i)
                 {
                     PathGeometry pathGeom = new PathGeometry();
@@ -630,7 +617,7 @@ namespace CxxDependencyVisualizer
                         PathFigure fig = new PathFigure();
                         fig.StartPoint = prev.center;
                         QuadraticBezierSegment seg = new QuadraticBezierSegment();
-                        seg.Point1 = CalculateBezierPoint(prev.center, curr.center, i, 25.0);
+                        seg.Point1 = CalculateBezierPoint(prev.center, curr.center, i, dist);
                         seg.Point2 = curr.center;
                         fig.Segments.Add(seg);
                         pathGeom.Figures.Add(fig);
@@ -642,11 +629,7 @@ namespace CxxDependencyVisualizer
                     path.Data = pathGeom;
                     activeControls.Add(canvas, path);
                 }
-
-                //MessageBox.Show(message, "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
-            //else
-            //    MessageBox.Show("No cycles found.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private Point CalculateBezierPoint(Point p1, Point p2, int i, double dist)
