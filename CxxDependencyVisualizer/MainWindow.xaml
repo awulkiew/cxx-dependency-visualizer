@@ -32,7 +32,23 @@
                     <Separator />
                     <MenuItem x:Name="menu_ShowLines" IsCheckable="True" Header="Show Lines" IsChecked="False" />
                     <Separator />
-                    <Grid>
+                    <Grid MinWidth="128">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Label Grid.Row="0" Content="Lines Width" />
+                        <Grid Grid.Row="1">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Label Width="24" x:Name="menu_LinesWidthLabel" Grid.Column="0" Content="2"/>
+                            <Slider x:Name="menu_LinesWidthSlider" Grid.Column="1" Minimum="1" Maximum="10" Value="2" />
+                        </Grid>
+                    </Grid>
+                    <Separator />
+                    <Grid MinWidth="128">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />

@@ -40,6 +40,7 @@ namespace CxxDependencyVisualizer
             menu_Layout3.Unchecked += menu_Layout_Unchecked;
             menu_Layout4.Unchecked += menu_Layout_Unchecked;
             menu_CyclesLinesDistanceSlider.ValueChanged += menu_CyclesLinesDistanceSlider_ValueChanged;
+            menu_LinesWidthSlider.ValueChanged += Menu_LinesWidthSlider_ValueChanged;
         }
 
         private void menu_Layout_Checked(object sender, RoutedEventArgs e)
@@ -82,6 +83,11 @@ namespace CxxDependencyVisualizer
         private void menu_CyclesLinesDistanceSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             menu_CyclesLinesDistanceLabel.Content = (int)menu_CyclesLinesDistanceSlider.Value;
+        }
+
+        private void Menu_LinesWidthSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            menu_LinesWidthLabel.Content = (int)menu_LinesWidthSlider.Value;
         }
 
         LibData data = new LibData();
@@ -297,6 +303,7 @@ namespace CxxDependencyVisualizer
                     line.Stroke = Brushes.DarkGray;
                     line.StrokeThickness = 1;
                     line.Visibility = vis;
+                    Canvas.SetZIndex(line, -1);
 
                     d.Value.childrenLines.Add(line);
 
@@ -376,6 +383,7 @@ namespace CxxDependencyVisualizer
                     line.Stroke = Brushes.DarkGray;
                     line.StrokeThickness = 1;
                     line.Visibility = linesVisibility;
+                    Canvas.SetZIndex(line, -1);
                 }
                 textBlocks.Clear();
                 lines.Clear();
@@ -397,15 +405,16 @@ namespace CxxDependencyVisualizer
                 textBlocks.Add(textBlock);
             }
 
-            public void Select(Line line, SelectType type)
+            public void Select(Line line, SelectType type, double linesThickness)
             {
                 line.Stroke = brushes[(int)type];
-                line.StrokeThickness = 2;
+                line.StrokeThickness = linesThickness;
                 line.Visibility = Visibility.Visible;
+                Canvas.SetZIndex(line, 0);
                 lines.Add(line);
             }
 
-            public void Add(Canvas canvas, Shape shape)
+            public void Add(Canvas canvas, Shape shape, double linesThickness)
             {
                 int brushId = shapes.Count;
                 Brush brush = null;
@@ -422,7 +431,7 @@ namespace CxxDependencyVisualizer
                 }
 
                 shape.Stroke = brush;
-                shape.StrokeThickness = 2;
+                shape.StrokeThickness = linesThickness;
                 shapes.Add(shape);
 
                 canvas.Children.Add(shape);
@@ -449,6 +458,8 @@ namespace CxxDependencyVisualizer
         ActiveControls activeControls = new ActiveControls();
         private void TextBlock_MouseDown(object sender, MouseButtonEventArgs e)
         {
+            double linesThickness = menu_LinesWidthSlider.Value;
+
             var textBlock = sender as TextBlock;
             TextBlock lastTextBlock = null;
 
@@ -478,9 +489,9 @@ namespace CxxDependencyVisualizer
                 foreach (var p in d.parents)
                     activeControls.Select(data.dict[p].textBlock, ActiveControls.SelectType.Parent);
                 foreach (var line in d.childrenLines)
-                    activeControls.Select(line, ActiveControls.SelectType.Child);
+                    activeControls.Select(line, ActiveControls.SelectType.Child, linesThickness);
                 foreach (var line in d.parentsLines)
-                    activeControls.Select(line, ActiveControls.SelectType.Parent);
+                    activeControls.Select(line, ActiveControls.SelectType.Parent, linesThickness);
             }
             // find and select path
             else
@@ -516,7 +527,7 @@ namespace CxxDependencyVisualizer
                         // handle lines from previous (parent) to child (current)
                         int ip = d.children.IndexOf(path[i + 1]);
                         if (ip >= 0 && ip < d.childrenLines.Count) // just in case
-                            activeControls.Select(d.childrenLines[ip], selectedType);
+                            activeControls.Select(d.childrenLines[ip], selectedType, linesThickness);
                     }
 
                     activeControls.ReSelect(1, selectedType);
@@ -582,6 +593,8 @@ namespace CxxDependencyVisualizer
             Visibility vis = menu_ShowLines.IsChecked
                            ? Visibility.Visible
                            : Visibility.Hidden;
+            double linesThickness = menu_LinesWidthSlider.Value;
+
             activeControls.Reset(canvas, data, vis);
 
             List<List<string>> cycles = new List<List<string>>();
@@ -627,7 +640,7 @@ namespace CxxDependencyVisualizer
 
                     System.Windows.Shapes.Path path = new System.Windows.Shapes.Path();
                     path.Data = pathGeom;
-                    activeControls.Add(canvas, path);
+                    activeControls.Add(canvas, path, linesThickness);
                 }
             }
         }
