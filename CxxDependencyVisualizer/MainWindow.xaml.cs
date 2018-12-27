@@ -103,6 +103,8 @@ namespace CxxDependencyVisualizer
 
             // Clear states
             activeControls.Reset(data);
+            foreach (var d in data.dict)
+                d.Value.childrenLines.Clear();
             canvas.Children.Clear();
 
             graphCreation = menu_Layout1.IsChecked ? GraphCreation.LevelMin
