@@ -82,9 +82,10 @@ namespace CxxDependencyVisualizer
             return result;
         }
 
-        public static Size MeasureTextBlock(TextBlock textBlock)
+        public static Size MeasureTextBlock(string text)
         {
-            var formattedText = new FormattedText(textBlock.Text,
+            TextBlock textBlock = new TextBlock();
+            var formattedText = new FormattedText(text,
                                                   CultureInfo.CurrentCulture,
                                                   FlowDirection.LeftToRight,
                                                   new Typeface(textBlock.FontFamily,

@@ -36,10 +36,10 @@ namespace CxxDependencyVisualizer
         public int maxLevel = -1;
         public bool duplicatedChildren = false;
 
-        public PointI position = null;
         public Point center;
+        public Size size;
+
         public TextBlock textBlock = null;
-        public List<Line> childrenLines = new List<Line>();
     }
 
     class LibData

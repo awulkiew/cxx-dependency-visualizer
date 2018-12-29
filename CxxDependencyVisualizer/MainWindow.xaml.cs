@@ -24,8 +24,7 @@ namespace CxxDependencyVisualizer
     {
         LibData data = new LibData();
         ActiveControls activeControls = null;
-        enum GraphCreation { LevelMin, LevelMax, LevelMinClosestParent, LevelMaxClosestParent };
-        GraphCreation graphCreation = GraphCreation.LevelMin;
+        GraphLayout.Algorithm graphCreation = GraphLayout.Algorithm.LevelMin;
 
         public MainWindow()
         {
@@ -40,12 +39,8 @@ namespace CxxDependencyVisualizer
 
             menu_Layout1.Checked += menu_Layout_Checked;
             menu_Layout2.Checked += menu_Layout_Checked;
-            menu_Layout3.Checked += menu_Layout_Checked;
-            menu_Layout4.Checked += menu_Layout_Checked;
             menu_Layout1.Unchecked += menu_Layout_Unchecked;
             menu_Layout2.Unchecked += menu_Layout_Unchecked;
-            menu_Layout3.Unchecked += menu_Layout_Unchecked;
-            menu_Layout4.Unchecked += menu_Layout_Unchecked;
             menu_CyclesLinesDistanceSlider.ValueChanged += menu_CyclesLinesDistanceSlider_ValueChanged;
             menu_LinesWidthSlider.ValueChanged += Menu_LinesWidthSlider_ValueChanged;
         }
@@ -64,18 +59,6 @@ namespace CxxDependencyVisualizer
                 menu_Layout2.Unchecked -= menu_Layout_Unchecked;
                 menu_Layout2.IsChecked = false;
                 menu_Layout2.Unchecked += menu_Layout_Unchecked;
-            }
-            if (menuItem != menu_Layout3 && menu_Layout3 != null)
-            {
-                menu_Layout3.Unchecked -= menu_Layout_Unchecked;
-                menu_Layout3.IsChecked = false;
-                menu_Layout3.Unchecked += menu_Layout_Unchecked;
-            }
-            if (menuItem != menu_Layout4 && menu_Layout4 != null)
-            {
-                menu_Layout4.Unchecked -= menu_Layout_Unchecked;
-                menu_Layout4.IsChecked = false;
-                menu_Layout4.Unchecked += menu_Layout_Unchecked;
             }
         }
 
@@ -97,132 +80,86 @@ namespace CxxDependencyVisualizer
             menu_LinesWidthLabel.Content = (int)menu_LinesWidthSlider.Value;
         }
 
+        class PointI : IEquatable<PointI>
+        {
+            public PointI(int x, int y)
+            {
+                this.x = x;
+                this.y = y;
+            }
+
+            public override int GetHashCode()
+            {
+                return Tuple.Create(x, y).GetHashCode();
+            }
+
+            public bool Equals(PointI other)
+            {
+                return x == other.x && y == other.y;
+            }
+
+            public int x;
+            public int y;
+        }
+
         private void buttonAnalyze_Click(object sender, RoutedEventArgs e)
         {
             //textBlockStatus.Text = "Processing...";
 
             // Clear states
             activeControls.Reset(data);
-            foreach (var d in data.dict)
-                d.Value.childrenLines.Clear();
             canvas.Children.Clear();
 
-            graphCreation = menu_Layout1.IsChecked ? GraphCreation.LevelMin
-                          : menu_Layout2.IsChecked ? GraphCreation.LevelMax
-                          : menu_Layout3.IsChecked ? GraphCreation.LevelMinClosestParent
-                          : menu_Layout4.IsChecked ? GraphCreation.LevelMaxClosestParent
-                          : GraphCreation.LevelMin;
+            graphCreation = menu_Layout1.IsChecked ? GraphLayout.Algorithm.LevelMin
+                          : menu_Layout2.IsChecked ? GraphLayout.Algorithm.LevelMax
+                          : GraphLayout.Algorithm.LevelMin;
 
             // Analyze includes and create dictionary
             data = new LibData(textBoxDir.Text, textBoxFile.Text, true);
 
             // Generate containers of levels of inclusion (min or max level found).
-            List<List<string>> levels = new List<List<string>>();
-            bool useMax = graphCreation == GraphCreation.LevelMax
-                       || graphCreation == GraphCreation.LevelMaxClosestParent;
-            foreach (var include in data.dict)
-            {
-                int level = useMax
-                          ? include.Value.maxLevel
-                          : include.Value.minLevel;
-                for (int i = levels.Count; i < level + 1; ++i)
-                    levels.Add(new List<string>());
-                levels[level].Add(include.Key);
-            }
+            bool useMin = graphCreation == GraphLayout.Algorithm.LevelMin;
+            List<List<string>> levels = GraphLayout.GenerateLevels(data.dict, useMin);
 
-            // Creation algorithm 1
-            if (graphCreation == GraphCreation.LevelMin
-             || graphCreation == GraphCreation.LevelMax)
+            Dictionary<Node, PointI> gridPositions = new Dictionary<Node, PointI>();
+
+            // Simple layout algorithm based on include level
+            List<int> counts = new List<int>();
+            foreach (var l in levels)
+                counts.Add(l.Count());
+            counts.Sort();
+            int medianCount = counts.Count > 0
+                            ? counts[counts.Count / 2]
+                            : 0;
             {
-                List<int> counts = new List<int>();
-                foreach (var l in levels)
-                    counts.Add(l.Count());
-                counts.Sort();
-                int medianCount = counts.Count > 0
-                                ? counts[counts.Count / 2]
-                                : 0;
-                for (; ; )
+                int y = 0;
+                for (int i = 0; i < levels.Count; ++i)
                 {
-                    bool allSet = true;
-                    int y = 0;
-                    for (int i = 0; i < levels.Count; ++i)
+                    List<string> lvl = levels[i];
+                    int x = 0;
+                    int remaining = lvl.Count;
+                    for (int j = 0; j < lvl.Count; ++j)
                     {
-                        List<string> lvl = levels[i];
-                        int x = 0;
-                        int remaining = lvl.Count;
-                        for (int j = 0; j < lvl.Count; ++j)
+                        if (x >= medianCount)
                         {
-                            var d = data.dict[lvl[j]];
-                            if (x >= medianCount)
-                            {
-                                ++y;
-                                x = 0;
-                                remaining -= medianCount;
-                            }
-
-                            int shift = Math.Min(medianCount, remaining) - 1;
-                            d.position = new PointI(-shift / 2 + x, y);
-                            ++x;
+                            ++y;
+                            x = 0;
+                            remaining -= medianCount;
                         }
-                        ++y;
+
+                        int shift = Math.Min(medianCount, remaining) - 1;
+                        PointI position = new PointI(-shift / 2 + x, y);
+                        ++x;
+
+                        var d = data.dict[lvl[j]];
+                        gridPositions.Add(d, position);
                     }
-
-                    if (allSet)
-                        break;
-                }
-            }
-            // Creation algorithm 2
-            else if (graphCreation == GraphCreation.LevelMinClosestParent
-                  || graphCreation == GraphCreation.LevelMaxClosestParent)
-            {
-                PointI rootPos = new PointI(0, 0);
-                string strId = Util.PathFromDirFile(textBoxDir.Text, textBoxFile.Text);
-                data.dict[strId].position = rootPos;
-                HashSet<PointI> pointsSet = new HashSet<PointI>();
-                pointsSet.Add(rootPos);
-                for (; ; )
-                {
-                    bool allSet = true;
-                    for (int i = 0; i < levels.Count; ++i)
-                    {
-                        List<string> lvl = levels[i];
-                        for (int j = 0; j < lvl.Count; ++j)
-                        {
-                            var d = data.dict[lvl[j]];
-                            if (d.position == null)
-                            {
-                                // TODO average from all parents?
-                                PointI parentPos = null;
-                                foreach (var pStr in d.parents)
-                                {
-                                    var p = data.dict[pStr];
-                                    if (p.position != null)
-                                        parentPos = p.position;
-                                }
-
-                                if (parentPos == null)
-                                {
-                                    allSet = false;
-                                }
-                                else
-                                {
-                                    PositionFeed feed = new PositionFeed(parentPos);
-                                    PointI pt = feed.Next();
-                                    for (; pointsSet.Contains(pt); pt = feed.Next()) ;
-                                    pointsSet.Add(pt);
-                                    d.position = pt;
-                                }
-                            }
-                        }
-                    }
-
-                    if (allSet)
-                        break;
+                    ++y;
                 }
             }
 
-            // Create textBlocks with borders for each include and calculate
-            // bounding box in graph grid coordinates
+            // Calculate bounding box in graph grid coordinates
+            //   and max size
             int minX = int.MaxValue;
             int minY = int.MaxValue;
             int maxX = int.MinValue;
@@ -230,43 +167,17 @@ namespace CxxDependencyVisualizer
             double maxSize = 0;
             foreach (var d in data.dict)
             {
-                minX = Math.Min(minX, d.Value.position.x);
-                minY = Math.Min(minY, d.Value.position.y);
-                maxX = Math.Max(maxX, d.Value.position.x);
-                maxY = Math.Max(maxY, d.Value.position.y);
-                if (d.Value.textBlock == null)
-                {
-                    TextBlock textBlock = new TextBlock();
-                    if (d.Value.duplicatedChildren)
-                        textBlock.Background = Brushes.Yellow;
-                    else
-                        textBlock.Background = Brushes.White;
-                    textBlock.Text = Util.FileFromPath(d.Key);
-                    textBlock.Padding = new Thickness(5);
-                    Size s = Util.MeasureTextBlock(textBlock);
-                    textBlock.Width = s.Width + 10;
-                    textBlock.Height = s.Height + 10;
-                    textBlock.DataContext = d.Key;
-                    string tooltip = d.Key
-                                   + "\r\nLevels: [" + d.Value.minLevel + ", " + d.Value.maxLevel + "]"
-                                   + (d.Value.duplicatedChildren ? "\r\nWARNING: duplicated includes" : "")
-                                   + "\r\n";
-                    foreach (var c in d.Value.children)
-                        tooltip += "\r\n" + c;
-                    textBlock.ToolTip = tooltip;
-                    textBlock.MouseDown += TextBlock_MouseDown;
+                PointI position = gridPositions[d.Value];
+                minX = Math.Min(minX, position.x);
+                minY = Math.Min(minY, position.y);
+                maxX = Math.Max(maxX, position.x);
+                maxY = Math.Max(maxY, position.y);
 
-                    Border border = new Border();
-                    border.BorderThickness = new Thickness(1);
-                    if (d.Value.important)
-                        border.BorderBrush = Brushes.Blue;
-                    else
-                        border.BorderBrush = Brushes.Black;
-                    border.Child = textBlock;
-
-                    d.Value.textBlock = textBlock;
-                }
-                maxSize = Math.Max(maxSize, Math.Max(d.Value.textBlock.Width, d.Value.textBlock.Height));
+                string file = Util.FileFromPath(d.Key);
+                d.Value.size = Util.MeasureTextBlock(file);
+                d.Value.size.Width += 10;
+                d.Value.size.Height += 10;
+                maxSize = Math.Max(maxSize, Math.Max(d.Value.size.Width, d.Value.size.Height));
             }
 
             // Calculate the size of graph in canvas coordinates
@@ -275,13 +186,54 @@ namespace CxxDependencyVisualizer
             int graphH = maxY - minY;
             double cellSize = maxSize;
             double graphWidth = cellSize * graphW;
-            double graphHeight = cellSize* graphH;
+            double graphHeight = cellSize * graphH;
             double xOrig = graphWidth / 2;
             double yOrig = 0;
             foreach (var d in data.dict)
             {
-                d.Value.center.X = xOrig + d.Value.position.x * cellSize;
-                d.Value.center.Y = yOrig + d.Value.position.y * cellSize;
+                PointI position = gridPositions[d.Value];
+                d.Value.center.X = xOrig + position.x * cellSize;
+                d.Value.center.Y = yOrig + position.y * cellSize;
+            }
+
+            // Create textBlocks with borders for each include and calculate
+            foreach (var d in data.dict)
+            {
+                TextBlock textBlock = new TextBlock();
+                if (d.Value.duplicatedChildren)
+                    textBlock.Background = Brushes.Yellow;
+                else
+                    textBlock.Background = Brushes.White;
+                textBlock.Text = Util.FileFromPath(d.Key);
+                textBlock.Padding = new Thickness(5);
+                textBlock.Width = d.Value.size.Width;
+                textBlock.Height = d.Value.size.Height;
+                textBlock.DataContext = d.Key;
+                string tooltip = d.Key
+                                + "\r\nLevels: [" + d.Value.minLevel + ", " + d.Value.maxLevel + "]"
+                                + (d.Value.duplicatedChildren ? "\r\nWARNING: duplicated includes" : "")
+                                + "\r\n";
+                foreach (var c in d.Value.children)
+                    tooltip += "\r\n" + c;
+                textBlock.ToolTip = tooltip;
+                textBlock.MouseDown += TextBlock_MouseDown;
+
+                d.Value.textBlock = textBlock;
+
+                Border border = new Border();
+                border.BorderThickness = new Thickness(1);
+                if (d.Value.important)
+                    border.BorderBrush = Brushes.Blue;
+                else
+                    border.BorderBrush = Brushes.Black;
+                border.Child = textBlock;
+                double l = d.Value.center.X - d.Value.textBlock.Width / 2;
+                double t = d.Value.center.Y - d.Value.textBlock.Height / 2;
+                Canvas.SetLeft(border, l);
+                Canvas.SetTop(border, t);
+                Canvas.SetZIndex(border, 1);
+
+                canvas.Children.Add(border);
             }
 
             // add all lines - connections between includes
@@ -308,25 +260,9 @@ namespace CxxDependencyVisualizer
                         line.StrokeThickness = 1;
                         Canvas.SetZIndex(line, -1);
 
-                        d.Value.childrenLines.Add(line);
-
                         canvas.Children.Add(line);
                     }
                 }
-            }
-
-            // add all textBoxes with borders
-            foreach (var d in data.dict)
-            {
-                double l = d.Value.center.X - d.Value.textBlock.Width / 2;
-                double t = d.Value.center.Y - d.Value.textBlock.Height / 2;
-                
-                Border border = d.Value.textBlock.Parent as Border;
-                Canvas.SetLeft(border, l);
-                Canvas.SetTop(border, t);
-                Canvas.SetZIndex(border, 1);
-
-                canvas.Children.Add(border);
             }
 
             // calculate the scale of graph in order to fit it to window
