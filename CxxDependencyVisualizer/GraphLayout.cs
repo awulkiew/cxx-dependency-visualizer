@@ -11,49 +11,11 @@ namespace CxxDependencyVisualizer
     {
         public enum UseLevel { Min, Max };
 
-        public static List<List<string>> GenerateLevels(Dictionary<string, Node> dict, bool useMinLevel)
-        {
-            // Generate containers of levels of inclusion (min or max level found).
-            List<List<string>> result = new List<List<string>>();
-            foreach (var include in dict)
-            {
-                int level = useMinLevel
-                          ? include.Value.minLevel
-                          : include.Value.maxLevel;
-                for (int i = result.Count; i < level + 1; ++i)
-                    result.Add(new List<string>());
-                result[level].Add(include.Key);
-            }
-            return result;
-        }
-
-        private struct PointI// : IEquatable<PointI>
-        {
-            public PointI(int x, int y)
-            {
-                this.x = x;
-                this.y = y;
-            }
-
-            /*public override int GetHashCode()
-            {
-                return Tuple.Create(x, y).GetHashCode();
-            }
-
-            public bool Equals(PointI other)
-            {
-                return x == other.x && y == other.y;
-            }*/
-
-            public int x;
-            public int y;
-        }
-
-        public static Size CreateLayout(Dictionary<string, Node> dict, UseLevel useLevel)
+        public static Size LevelBasedLayout(Dictionary<string, Node> dict, UseLevel useLevel)
         {
             // Generate containers of levels of inclusion (min or max level found).
             bool useMin = (useLevel == UseLevel.Min);
-            List<List<string>> levels = GenerateLevels(dict, useMin);
+            List<List<Node>> levels = Levels(dict, useMin);
 
             Dictionary<Node, PointI> gridPositions = new Dictionary<Node, PointI>();
 
@@ -69,7 +31,7 @@ namespace CxxDependencyVisualizer
             int y = 0;
             for (int i = 0; i < levels.Count; ++i)
             {
-                List<string> lvl = levels[i];
+                List<Node> lvl = levels[i];
                 int x = 0;
                 int remaining = lvl.Count;
                 for (int j = 0; j < lvl.Count; ++j)
@@ -85,8 +47,7 @@ namespace CxxDependencyVisualizer
                     PointI position = new PointI(-shift / 2 + x, y);
                     ++x;
 
-                    var d = dict[lvl[j]];
-                    gridPositions.Add(d, position);
+                    gridPositions.Add(lvl[j], position);
                 }
                 ++y;
             }
@@ -101,10 +62,10 @@ namespace CxxDependencyVisualizer
             foreach (var d in dict)
             {
                 PointI position = gridPositions[d.Value];
-                minX = Math.Min(minX, position.x);
-                minY = Math.Min(minY, position.y);
-                maxX = Math.Max(maxX, position.x);
-                maxY = Math.Max(maxY, position.y);
+                minX = Math.Min(minX, position.X);
+                minY = Math.Min(minY, position.Y);
+                maxX = Math.Max(maxX, position.X);
+                maxY = Math.Max(maxY, position.Y);
 
                 string file = Util.FileFromPath(d.Key);
                 d.Value.size = Util.MeasureTextBlock(file);
@@ -122,14 +83,39 @@ namespace CxxDependencyVisualizer
             double graphHeight = cellSize * graphH;
             double xOrig = graphWidth / 2;
             double yOrig = 0;
-            foreach (var d in dict)
+            foreach (var n in gridPositions)
             {
-                PointI position = gridPositions[d.Value];
-                d.Value.center.X = xOrig + position.x * cellSize;
-                d.Value.center.Y = yOrig + position.y * cellSize;
+                PointI position = n.Value;
+                n.Key.center.X = xOrig + position.X * cellSize;
+                n.Key.center.Y = yOrig + position.Y * cellSize;
             }
 
             return new Size(graphWidth, graphHeight);
+        }
+
+        private static List<List<Node>> Levels(Dictionary<string, Node> dict, bool useMinLevel)
+        {
+            // Generate containers of levels of inclusion (min or max level found).
+            List<List<Node>> result = new List<List<Node>>();
+            foreach (var d in dict)
+            {
+                int level = useMinLevel ? d.Value.minLevel : d.Value.maxLevel;
+                Util.Resize(result, level + 1);
+                result[level].Add(d.Value);
+            }
+            return result;
+        }
+
+        private struct PointI
+        {
+            public PointI(int x, int y)
+            {
+                X = x;
+                Y = y;
+            }
+
+            public int X;
+            public int Y;
         }
     }
 }

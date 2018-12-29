@@ -94,7 +94,7 @@ namespace CxxDependencyVisualizer
             // Analyze includes and create dictionary
             data = new LibData(textBoxDir.Text, textBoxFile.Text, true);
 
-            Size graphSize = GraphLayout.CreateLayout(data.dict, useLevel);
+            Size graphSize = GraphLayout.LevelBasedLayout(data.dict, useLevel);
 
             // Create textBlocks with borders for each include and calculate
             foreach (var d in data.dict)

@@ -156,5 +156,12 @@ namespace CxxDependencyVisualizer
                     list.Add(s);
             }
         }
+
+        public static void Resize<T>(List<T> list, int size)
+            where T : new()
+        {
+            for (int i = list.Count; i < size; ++i)
+                list.Add(new T());
+        }
     }
 }
