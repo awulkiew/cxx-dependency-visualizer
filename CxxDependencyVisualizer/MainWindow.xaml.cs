@@ -24,8 +24,7 @@ namespace CxxDependencyVisualizer
     {
         LibData data = new LibData();
         ActiveControls activeControls = null;
-        GraphLayout.Algorithm graphCreation = GraphLayout.Algorithm.LevelMin;
-
+        
         public MainWindow()
         {
             InitializeComponent();
@@ -80,28 +79,6 @@ namespace CxxDependencyVisualizer
             menu_LinesWidthLabel.Content = (int)menu_LinesWidthSlider.Value;
         }
 
-        class PointI : IEquatable<PointI>
-        {
-            public PointI(int x, int y)
-            {
-                this.x = x;
-                this.y = y;
-            }
-
-            public override int GetHashCode()
-            {
-                return Tuple.Create(x, y).GetHashCode();
-            }
-
-            public bool Equals(PointI other)
-            {
-                return x == other.x && y == other.y;
-            }
-
-            public int x;
-            public int y;
-        }
-
         private void buttonAnalyze_Click(object sender, RoutedEventArgs e)
         {
             //textBlockStatus.Text = "Processing...";
@@ -110,91 +87,14 @@ namespace CxxDependencyVisualizer
             activeControls.Reset(data);
             canvas.Children.Clear();
 
-            graphCreation = menu_Layout1.IsChecked ? GraphLayout.Algorithm.LevelMin
-                          : menu_Layout2.IsChecked ? GraphLayout.Algorithm.LevelMax
-                          : GraphLayout.Algorithm.LevelMin;
+            GraphLayout.UseLevel useLevel = menu_Layout1.IsChecked ? GraphLayout.UseLevel.Min
+                                          : menu_Layout2.IsChecked ? GraphLayout.UseLevel.Max
+                                          : GraphLayout.UseLevel.Min;
 
             // Analyze includes and create dictionary
             data = new LibData(textBoxDir.Text, textBoxFile.Text, true);
 
-            // Generate containers of levels of inclusion (min or max level found).
-            bool useMin = graphCreation == GraphLayout.Algorithm.LevelMin;
-            List<List<string>> levels = GraphLayout.GenerateLevels(data.dict, useMin);
-
-            Dictionary<Node, PointI> gridPositions = new Dictionary<Node, PointI>();
-
-            // Simple layout algorithm based on include level
-            List<int> counts = new List<int>();
-            foreach (var l in levels)
-                counts.Add(l.Count());
-            counts.Sort();
-            int medianCount = counts.Count > 0
-                            ? counts[counts.Count / 2]
-                            : 0;
-            {
-                int y = 0;
-                for (int i = 0; i < levels.Count; ++i)
-                {
-                    List<string> lvl = levels[i];
-                    int x = 0;
-                    int remaining = lvl.Count;
-                    for (int j = 0; j < lvl.Count; ++j)
-                    {
-                        if (x >= medianCount)
-                        {
-                            ++y;
-                            x = 0;
-                            remaining -= medianCount;
-                        }
-
-                        int shift = Math.Min(medianCount, remaining) - 1;
-                        PointI position = new PointI(-shift / 2 + x, y);
-                        ++x;
-
-                        var d = data.dict[lvl[j]];
-                        gridPositions.Add(d, position);
-                    }
-                    ++y;
-                }
-            }
-
-            // Calculate bounding box in graph grid coordinates
-            //   and max size
-            int minX = int.MaxValue;
-            int minY = int.MaxValue;
-            int maxX = int.MinValue;
-            int maxY = int.MinValue;
-            double maxSize = 0;
-            foreach (var d in data.dict)
-            {
-                PointI position = gridPositions[d.Value];
-                minX = Math.Min(minX, position.x);
-                minY = Math.Min(minY, position.y);
-                maxX = Math.Max(maxX, position.x);
-                maxY = Math.Max(maxY, position.y);
-
-                string file = Util.FileFromPath(d.Key);
-                d.Value.size = Util.MeasureTextBlock(file);
-                d.Value.size.Width += 10;
-                d.Value.size.Height += 10;
-                maxSize = Math.Max(maxSize, Math.Max(d.Value.size.Width, d.Value.size.Height));
-            }
-
-            // Calculate the size of graph in canvas coordinates
-            // from bounding box in graph grid coordinates
-            int graphW = maxX - minX;
-            int graphH = maxY - minY;
-            double cellSize = maxSize;
-            double graphWidth = cellSize * graphW;
-            double graphHeight = cellSize * graphH;
-            double xOrig = graphWidth / 2;
-            double yOrig = 0;
-            foreach (var d in data.dict)
-            {
-                PointI position = gridPositions[d.Value];
-                d.Value.center.X = xOrig + position.x * cellSize;
-                d.Value.center.Y = yOrig + position.y * cellSize;
-            }
+            Size graphSize = GraphLayout.CreateLayout(data.dict, useLevel);
 
             // Create textBlocks with borders for each include and calculate
             foreach (var d in data.dict)
@@ -266,8 +166,8 @@ namespace CxxDependencyVisualizer
             }
 
             // calculate the scale of graph in order to fit it to window
-            double scaleW = Math.Min(canvasGrid.ActualWidth / graphWidth, 1);
-            double scaleH = Math.Min(canvasGrid.ActualHeight / graphHeight, 1);
+            double scaleW = Math.Min(canvasGrid.ActualWidth / graphSize.Width, 1);
+            double scaleH = Math.Min(canvasGrid.ActualHeight / graphSize.Height, 1);
             double scale = Math.Min(scaleW, scaleH);
 
             var matrix = Matrix.Identity;
