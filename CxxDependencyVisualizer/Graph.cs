@@ -14,31 +14,38 @@ namespace CxxDependencyVisualizer
     {
         public Node(string parentId, int level)
         {
-            if (!Util.Empty(parentId))
-                this.parents.Add(parentId);
-
-            this.minLevel = level;
-            this.maxLevel = level;
+            AddParent(parentId, level);
         }
 
-        public void Update(string parentPath, int level)
+        public void AddParent(string parentId, int level)
         {
-            if (!Util.Empty(parentPath))
-                this.parents.Add(parentPath);
+            if (!Util.Empty(parentId))
+                this.parents.Add(parentId);
             this.minLevel = Math.Min(this.minLevel, level);
             this.maxLevel = Math.Max(this.maxLevel, level);
         }
 
+        public void AddChild(string childId)
+        {
+            if (children.Contains(childId))
+                duplicatedChildren = true;
+            else
+                children.Add(childId);
+        }
+
+        // graph
         public List<string> children = new List<string>();
         public List<string> parents = new List<string>();
         public bool important = true;
-        public int minLevel = -1;
-        public int maxLevel = -1;
+        public int minLevel = int.MaxValue;
+        public int maxLevel = int.MinValue;
         public bool duplicatedChildren = false;
 
-        public Point center;
-        public Size size;
+        // geometry
+        public Size size; // in
+        public Point center; // out
 
+        // ui
         public TextBlock textBlock = null;
     }
 
@@ -57,7 +64,7 @@ namespace CxxDependencyVisualizer
         {
             if (dict.ContainsKey(path))
             {
-                dict[path].Update(parentPath, level);
+                dict[path].AddParent(parentPath, level);
             }
             else
             {
@@ -66,10 +73,7 @@ namespace CxxDependencyVisualizer
                 data.important = File.Exists(path);
                 foreach (string c in children)
                     if (!fromLibOnly || File.Exists(c))
-                        if (data.children.Contains(c))
-                            data.duplicatedChildren = true;
-                        else
-                            data.children.Add(c);
+                        data.AddChild(c);
 
                 dict.Add(path, data);
 
