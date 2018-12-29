@@ -176,7 +176,8 @@ namespace CxxDependencyVisualizer
                   || graphCreation == GraphCreation.LevelMaxClosestParent)
             {
                 PointI rootPos = new PointI(0, 0);
-                data.dict[Path(textBoxDir.Text, textBoxFile.Text)].position = rootPos;
+                string strId = Util.PathFromDirFile(textBoxDir.Text, textBoxFile.Text);
+                data.dict[strId].position = rootPos;
                 HashSet<PointI> pointsSet = new HashSet<PointI>();
                 pointsSet.Add(rootPos);
                 for (; ; )
@@ -240,9 +241,9 @@ namespace CxxDependencyVisualizer
                         textBlock.Background = Brushes.Yellow;
                     else
                         textBlock.Background = Brushes.White;
-                    textBlock.Text = FileFromPath(d.Key);
+                    textBlock.Text = Util.FileFromPath(d.Key);
                     textBlock.Padding = new Thickness(5);
-                    Size s = MeasureTextBlock(textBlock);
+                    Size s = Util.MeasureTextBlock(textBlock);
                     textBlock.Width = s.Width + 10;
                     textBlock.Height = s.Height + 10;
                     textBlock.DataContext = d.Key;
@@ -344,7 +345,7 @@ namespace CxxDependencyVisualizer
         {
             foreach(var d in data.dict)
             {
-                if (!Empty(textBoxFind.Text) && d.Key.IndexOf(textBoxFind.Text) >= 0)
+                if (!Util.Empty(textBoxFind.Text) && d.Key.IndexOf(textBoxFind.Text) >= 0)
                 {
                     Border border = d.Value.textBlock.Parent as Border;
                     double xFound = Canvas.GetLeft(border);
@@ -508,15 +509,15 @@ namespace CxxDependencyVisualizer
             else
             {
                 ActiveControls.ColorId selectedType = ActiveControls.ColorId.Child;
-                List<string> path = FindPath(lastTextBlock.DataContext as string,
-                                             textBlock.DataContext as string,
-                                             data.dict);
+                List<string> path = Graph.FindPath(lastTextBlock.DataContext as string,
+                                                   textBlock.DataContext as string,
+                                                   data.dict);
                 if (path.Count == 0)
                 {
                     selectedType = ActiveControls.ColorId.Parent;
-                    path = FindPath(textBlock.DataContext as string,
-                                    lastTextBlock.DataContext as string,
-                                    data.dict);
+                    path = Graph.FindPath(textBlock.DataContext as string,
+                                          lastTextBlock.DataContext as string,
+                                          data.dict);
                     
                 }
 
@@ -545,59 +546,6 @@ namespace CxxDependencyVisualizer
             }
         }
 
-        class StringListsCompare : IEqualityComparer<List<string>>
-        {
-            public bool Equals(List<string> x, List<string> y)
-            {
-                if (x.Count != y.Count)
-                    return false;
-                for (int i = 0; i < x.Count; ++i)
-                    if (x[i] != y[i])
-                        return false;
-                return true;
-            }
-
-            public int GetHashCode(List<string> obj)
-            {
-                return obj.GetHashCode();
-            }
-        }
-
-        private int IndexOfSmallest(List<string> list)
-        {
-            int result = -1;
-            if (list.Count > 0)
-            {
-                result = 0;
-                string smallest = list[0];
-                for (int i = 1; i < list.Count; ++i)
-                    if (list[i].CompareTo(smallest) < 0)
-                    {
-                        result = i;
-                        smallest = list[i];
-                    }
-            }
-            return result;
-        }
-
-        private void Rotate(List<string> list, int firstId)
-        {
-            if (0 < firstId && firstId < list.Count)
-            {
-                List<string> l1 = new List<string>();
-                List<string> l2 = new List<string>();
-                for (int i = 0; i < firstId; ++i)
-                    l1.Add(list[i]);
-                for (int i = firstId; i < list.Count; ++i)
-                    l2.Add(list[i]);
-                list.Clear();
-                foreach (var s in l2)
-                    list.Add(s);
-                foreach (var s in l1)
-                    list.Add(s);
-            }
-        }
-
         private void MenuItemCycles_Click(object sender, RoutedEventArgs e)
         {
             double linesThickness = menu_LinesWidthSlider.Value;
@@ -607,16 +555,17 @@ namespace CxxDependencyVisualizer
             List<List<string>> cycles = new List<List<string>>();
             foreach (var d in data.dict)
             {
-                List<string> cycle = FindCycle(d.Key, data.dict);
+                List<string> cycle = Graph.FindCycle(d.Key, data.dict);
                 if (cycle.Count > 0)
                 {
                     // Find smallest and rotate
-                    int idRot = IndexOfSmallest(cycle);
-                    Rotate(cycle, idRot);
-                    if (!cycles.Contains(cycle, new StringListsCompare()))
+                    int idRot = Util.IndexOfSmallest(cycle);
+                    Util.Rotate(cycle, idRot);
+                    if (!cycles.Contains(cycle, new Util.ListCompare<string>()))
                         cycles.Add(cycle);
                 }
             }
+
             // sort cycles by name to compare between them and reject already added
             if (cycles.Count > 0)
             {
@@ -730,453 +679,6 @@ namespace CxxDependencyVisualizer
                 matrix.TranslatePrepend(xOff, yOff);
                 transform.Matrix = matrix;
             }
-        }
-
-        class PositionFeed : RelativePositionFeed
-        {
-            public PositionFeed(PointI parentPos)
-            {
-                this.x = parentPos.x;
-                this.y = parentPos.y;
-            }
-
-            public new PointI Next()
-            {
-                PointI res = base.Next();
-                res.x += x;
-                res.y += y;
-                return res;
-            }
-
-            int x, y;
-        }
-
-        class RelativePositionFeed
-        {
-            public PointI Next()
-            {
-                if (sign == 0)
-                {
-                    x = 0;
-                    y = 0 + dist;
-                    sign = -1;
-                }
-                else
-                {
-                    // move
-                    if (sign < 0)
-                    {
-                        if (x < dist || y > 0)
-                        {
-                            if (x < dist)
-                                ++x;
-                            else if (y > 0)
-                                --y;
-                        }
-                        else
-                        {
-                            ++dist;
-                            x = 0;
-                            y = dist;
-                            sign = 1;
-                        }
-                    }
-                    sign *= -1;
-                }
-
-                return new PointI(x * sign, y);
-            }
-
-            int sign = 0;
-            int dist = 1;
-            int x = 0;
-            int y = 0;
-        }
-
-        class PointI : IEquatable<PointI>
-        {
-            public PointI(int x, int y)
-            {
-                this.x = x;
-                this.y = y;
-            }
-
-            public override int GetHashCode()
-            {
-                return Tuple.Create(x, y).GetHashCode();
-            }
-
-            public bool Equals(PointI other)
-            {
-                return x == other.x && y == other.y;
-            }
-
-            public int x;
-            public int y;
-        }
-
-        class IncludeData
-        {
-            public IncludeData(string dir, string path, string parentPath,
-                               List<string> children,
-                               bool important, int level)
-            {
-                if (!Empty(parentPath))
-                    this.parents.Add(parentPath);
-                this.children = children;
-                this.important = important;
-
-                this.minLevel = level;
-                this.maxLevel = level;
-            }
-
-            public void Update(string parentPath, int level)
-            {
-                if (!Empty(parentPath))
-                    this.parents.Add(parentPath);
-                this.minLevel = Math.Min(this.minLevel, level);
-                this.maxLevel = Math.Max(this.maxLevel, level);
-            }
-
-            public List<string> children = new List<string>();
-            public List<string> parents = new List<string>();
-            public bool important = true;
-            public int minLevel = -1;
-            public int maxLevel = -1;
-            public bool duplicatedChildren = false;
-
-            public PointI position = null;
-            public Point center;
-            public TextBlock textBlock = null;
-            public List<Line> childrenLines = new List<Line>();
-        }
-
-        class LibData
-        {
-            public LibData()
-            { }
-
-            public LibData(string dir, string file, bool fromLibOnly)
-            {
-                rootPath = Path(dir, file);
-                Analyze(dir, rootPath, null, fromLibOnly, 0, dict);
-            }
-
-            public List<string> ChildrenOf(string path)
-            {
-                if (!dict.ContainsKey(path))
-                    return new List<string>();
-                return dict[path].children;
-            }
-
-            public List<string> ParentsOf(string path)
-            {
-                if (!dict.ContainsKey(path))
-                    return new List<string>();
-                return dict[path].parents;
-            }
-
-            public string Root()
-            {
-                return rootPath;
-            }
-
-            public string rootPath = "";
-            public Dictionary<string, IncludeData> dict = new Dictionary<string, IncludeData>();
-        }
-
-        class Grid
-        {
-            public void Set(int x, int y, string v)
-            {
-                ResizeToContain(x, y);
-                int xCell = x - xBegin;
-                xData[xCell].Set(y, v);
-            }
-
-            public string Get(int x, int y)
-            {
-                int xCell = x - xBegin;
-                if (xCell < 0 || xCell >= xData.Count)
-                    return "";
-                return xData[xCell].Get(y);
-            }
-
-            public void ResizeToContain(int x, int y)
-            {
-                if (xData.Count == 0)
-                {
-                    xBegin = x;
-                    xData.Add(new YEntry());
-                }
-                else
-                {
-                    int xCell = x - xBegin;
-                    if (xCell >= 0)
-                    {
-                        for (int i = xData.Count; i < xCell + 1; ++i)
-                            xData.Add(new YEntry());
-                    }
-                    else
-                    {
-                        for (int i = 0; i < -xCell; ++i)
-                            xData.Insert(0, new YEntry());
-                        xBegin = x;
-                        xCell = 0;
-                    }
-                }
-
-                xData[x - xBegin].ResizeToContain(y);
-            }
-
-            class YEntry
-            {
-                public void Set(int y, string v)
-                {
-                    ResizeToContain(y);
-                    int yCell = y - yBegin;
-                    yData[yCell] = v;
-                }
-
-                public string Get(int y)
-                {
-                    int yCell = y - yBegin;
-                    if (yCell < 0 || yCell >= yData.Count)
-                        return "";
-                    return yData[yCell];
-                }
-
-                public void ResizeToContain(int y)
-                {
-                    if (yData.Count == 0)
-                    {
-                        yBegin = y;
-                        yData.Add("");
-                    }
-                    else
-                    {
-                        int yCell = y - yBegin;
-                        if (yCell >= 0)
-                        {
-                            for (int i = yData.Count; i < yCell + 1; ++i)
-                                yData.Add("");
-                        }
-                        else
-                        {
-                            for (int i = 0; i < -yCell; ++i)
-                                yData.Insert(0, "");
-                            yBegin = y;
-                        }
-                    }
-                }
-
-                int yBegin;
-                List<string> yData = new List<string>();
-            }
-
-            List<YEntry> xData = new List<YEntry>();
-            int xBegin = 0;
-        }
-
-        private static void Analyze(string dir, string path, string parentPath, bool fromLibOnly, int level, Dictionary<string, IncludeData> dict)
-        {
-            if (dict.ContainsKey(path))
-            {
-                dict[path].Update(parentPath, level);
-            }
-            else
-            {
-                List<string> children = GetChildren(dir, path);
-                IncludeData data = new IncludeData(dir,
-                                                   path,
-                                                   parentPath,
-                                                   new List<string>(),
-                                                   File.Exists(path),
-                                                   level);
-                foreach (string c in children)
-                    if (!fromLibOnly || File.Exists(c))
-                        if (data.children.Contains(c))
-                            data.duplicatedChildren = true;
-                        else
-                            data.children.Add(c);
-
-                dict.Add(path, data);
-
-                foreach (string p in data.children)
-                {
-                    Analyze(dir, p, path, fromLibOnly, level + 1, dict);
-                }
-            }
-        }
-
-        private static List<string> FindPath(string start, string end,
-                                             Dictionary<string, IncludeData> dict)
-        {
-            List<string> result = new List<string>();
-            Dictionary<string, int> map = new Dictionary<string, int>();
-            map.Add(start, 0);
-            FindPath(start, start, end, dict, map, result);
-            return result;
-        }
-
-        private static bool FindPath(string start, string curr, string end,
-                                     Dictionary<string, IncludeData> dict,
-                                     Dictionary<string, int> map,
-                                     List<string> result)
-        {
-            if (curr == end)
-            {
-                return TrackPathBack(curr, start, dict, map, result);
-            }
-
-            var neighbors = dict[curr].children;
-            var l = map[curr];
-            List<string> updated = new List<string>();
-            foreach (var n in neighbors)
-                if (Update(map, n, l + 1))
-                    updated.Add(n);
-            foreach (var n in updated)
-                if (FindPath(start, n, end, dict, map, result))
-                    return true;
-            return false;
-        }
-
-        private static bool TrackPathBack(string curr, string start,
-                                          Dictionary<string, IncludeData> dict,
-                                          Dictionary<string, int> map,
-                                          List<string> result)
-        {
-            if (curr == start)
-            {
-                result.Add(curr);
-                return true;
-            }
-
-            var l = map[curr];
-            var neighbors = dict[curr].parents;
-            foreach (var n in neighbors)
-                if (map.ContainsKey(n) && map[n] < l)
-                    if (TrackPathBack(n, start, dict, map, result))
-                    {
-                        result.Add(curr);
-                        return true;
-                    }
-            return false;
-        }
-
-        private static List<string> FindCycle(string header,
-                                              Dictionary<string, IncludeData> dict)
-        {
-            List<string> result = new List<string>();
-            Dictionary<string, int> map = new Dictionary<string, int>();
-            var d = dict[header];
-            foreach(var cStr in d.children)
-                map.Add(cStr, 0);
-            foreach (var cStr in d.children)
-                if (FindPath(cStr, cStr, header, dict, map, result))
-                    return result;
-            return result;
-        }
-
-        private static bool Update(Dictionary<string, int> map, string n, int l)
-        {
-            if (!map.ContainsKey(n))
-            {
-                map.Add(n, l);
-                return true;
-            }
-            else if (l < map[n])
-            {
-                map[n] = l;
-                return true;
-            }
-            return false;
-        }
-        
-        private static string Path(string dir, string file)
-        {
-            string d = dir.Replace('/', '\\');
-            string f = file.Replace('/', '\\');
-            if (!d.EndsWith("\\"))
-                d += '\\';
-            return d + f;
-        }
-
-        private static string DirFromPath(string path)
-        {
-            int id = path.LastIndexOf('\\');
-            return id >= 0
-                 ? path.Substring(0, id)
-                 : path.Clone() as string;
-        }
-
-        private static string FileFromPath(string path)
-        {
-            int id = path.LastIndexOf('\\');
-            return id >= 0
-                 ? path.Substring(id + 1)
-                 : path.Clone() as string;
-        }
-
-        private static bool Empty(string s)
-        {
-            return s == null || s.Length == 0;
-        }
-
-        private static List<string> GetChildren(string dir, string path)
-        {
-            List<string> result = new List<string>();
-
-            if (File.Exists(path))
-            {
-                StreamReader sr = new StreamReader(path);
-                while (!sr.EndOfStream)
-                {
-                    string line = sr.ReadLine();
-                    if (!Empty(line))
-                    {
-                        int idInclude = line.IndexOf("#include");
-                        if (idInclude >= 0)
-                        {
-                            int idBegin = -1;
-                            char closingChar = '\0';
-                            if ((idBegin = line.IndexOf('<')) >= 0)
-                                closingChar = '>';
-                            else if ((idBegin = line.IndexOf('"')) >= 0)
-                                closingChar = '"';
-                            int idEnd = idBegin >= 0 ? line.IndexOf(closingChar) : -1;
-                            if (idEnd >= 0 && idBegin <= idEnd)
-                            {
-                                string include = line.Substring(idBegin + 1, idEnd - idBegin - 1);
-                                string p = Path(closingChar == '>'
-                                                    ? dir
-                                                    : DirFromPath(path),
-                                                include);
-                                result.Add(p);
-                            }
-                        }
-                    }
-                }
-            }
-
-            return result;
-        }
-
-        private static Size MeasureTextBlock(TextBlock textBlock)
-        {
-            var formattedText = new FormattedText(textBlock.Text,
-                                                  CultureInfo.CurrentCulture,
-                                                  FlowDirection.LeftToRight,
-                                                  new Typeface(textBlock.FontFamily,
-                                                               textBlock.FontStyle,
-                                                               textBlock.FontWeight,
-                                                               textBlock.FontStretch),
-                                                  textBlock.FontSize,
-                                                  Brushes.Black,
-                                                  new NumberSubstitution(),
-                                                  TextFormattingMode.Display);
-
-            return new Size(formattedText.Width, formattedText.Height);
         }
     }
 }
