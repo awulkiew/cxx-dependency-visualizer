@@ -15,3 +15,7 @@ Left mouse click on one header followed by shift + left mouse click on second he
 Right mouse click on the canvas followed by choosing "Find All Cycles" from the context menu - display all cycles of headers.
 
 ![Cycles in headers](image3.png)
+
+Layout and other options can be changed in menu.
+
+![Different layouts](image4.png)
