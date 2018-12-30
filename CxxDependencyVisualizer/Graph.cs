@@ -56,7 +56,7 @@ namespace CxxDependencyVisualizer
 
         public LibData(string dir, string file, bool fromLibOnly)
         {
-            string rootPath = Util.PathFromDirFile(dir, file);
+            rootPath = Util.PathFromDirFile(dir, file);
             Analyze(dir, rootPath, null, fromLibOnly, 0);
         }
 
@@ -84,6 +84,7 @@ namespace CxxDependencyVisualizer
             }
         }
 
+        public string rootPath = "";
         public Dictionary<string, Node> dict = new Dictionary<string, Node>();
     }
 

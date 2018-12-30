@@ -112,10 +112,10 @@ namespace CxxDependencyVisualizer
 
             double k = gd.CellSize.Width;
             double c = 1;
-            //double tol = 0.0001;
+            //double tol = dict.Count * 0.1;
             double maxIterations = 100;
             double t = 0.9;
-            double initialStep = gd.CellSize.Width / 10;
+            double initialStep = gd.CellSize.Width;
 
             List<Node> x = new List<Node>(dict.Count);
             foreach (var d in dict)
@@ -127,9 +127,12 @@ namespace CxxDependencyVisualizer
 
             for(int iter = 0; iter < maxIterations; ++iter)
             {
-                /*List<Point> x0 = new List<Point>(x.Count);
+                /*
+                List<Point> x0 = new List<Point>(x.Count);
                 foreach (Node n in x)
-                    x0.Add(n.center);*/
+                    x0.Add(n.center);
+                */
+
                 double energy0 = energy;
                 energy = 0;
 
@@ -164,15 +167,17 @@ namespace CxxDependencyVisualizer
                     progress = 0;
                     step *= t;
                 }
+
                 /*
                 double distSum = 0;
                 for(int i = 0; i < x.Count; ++i)
                 {
-                    distSum += Util.Distance(x[i].point, x0[i].point);
-                }*/
+                    distSum += Util.Distance(x[i].center, x0[i]);
+                }
 
-                //if (distSum < k * tol)
-                //    break;
+                if (distSum < k * tol)
+                    break;
+                */
             }
 
             double minX = double.MaxValue;

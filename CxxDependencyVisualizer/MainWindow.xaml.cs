@@ -89,8 +89,6 @@ namespace CxxDependencyVisualizer
 
         private void buttonAnalyze_Click(object sender, RoutedEventArgs e)
         {
-            //textBlockStatus.Text = "Processing...";
-
             // Clear states
             activeControls.Reset(data);
             canvas.Children.Clear();
@@ -194,7 +192,10 @@ namespace CxxDependencyVisualizer
             matrix.Translate(canvasGrid.ActualWidth / 2 - graphCenterX * scale, 0);
             canvas.RenderTransform = new MatrixTransform(matrix);
 
-            //textBlockStatus.Text = "Done.";
+            if (data.dict.ContainsKey(data.rootPath))
+            {
+                TextBlock_MouseDown(data.dict[data.rootPath].textBlock, null);
+            }
         }
 
         private void buttonFind_Click(object sender, RoutedEventArgs e)
