@@ -41,6 +41,9 @@ namespace CxxDependencyVisualizer
         public int maxLevel = int.MinValue;
         public bool duplicatedChildren = false;
 
+        public List<Node> childNodes = new List<Node>();
+        public List<Node> parentNodes = new List<Node>();
+
         // geometry
         public Size size; // in
         public Point center; // out
@@ -58,6 +61,14 @@ namespace CxxDependencyVisualizer
         {
             rootPath = Util.PathFromDirFile(dir, file);
             Analyze(dir, rootPath, null, fromLibOnly, 0);
+
+            foreach (var d in dict)
+            {
+                foreach (var c in d.Value.children)
+                    d.Value.childNodes.Add(dict[c]);
+                foreach (var p in d.Value.parents)
+                    d.Value.parentNodes.Add(dict[p]);
+            }
         }
 
         private void Analyze(string dir, string path, string parentPath, bool fromLibOnly, int level)

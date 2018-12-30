@@ -127,11 +127,9 @@ namespace CxxDependencyVisualizer
 
             for(int iter = 0; iter < maxIterations; ++iter)
             {
-                /*
-                List<Point> x0 = new List<Point>(x.Count);
+                /*List<Point> x0 = new List<Point>(x.Count);
                 foreach (Node n in x)
-                    x0.Add(n.center);
-                */
+                    x0.Add(n.center);*/
 
                 double energy0 = energy;
                 energy = 0;
@@ -140,8 +138,8 @@ namespace CxxDependencyVisualizer
                 {
                     Node node = x[i];
 
-                    Point faSum = AttractiveForcesSum(node, k, dict);
-                    Point frSum = RepulsiveForcesSum(node, k, c, dict);
+                    Point faSum = AttractiveForcesSum(node, k);
+                    Point frSum = RepulsiveForcesSum(node, k, c, x);
                     Point f = Util.Add(faSum, frSum);
                     double fLenSqr = Util.LenSqr(f);
                     double fLen = Math.Sqrt(fLenSqr);
@@ -168,16 +166,14 @@ namespace CxxDependencyVisualizer
                     step *= t;
                 }
 
-                /*
-                double distSum = 0;
+                /*double distSum = 0;
                 for(int i = 0; i < x.Count; ++i)
                 {
                     distSum += Util.Distance(x[i].center, x0[i]);
                 }
 
                 if (distSum < k * tol)
-                    break;
-                */
+                    break;*/
             }
 
             double minX = double.MaxValue;
@@ -204,20 +200,18 @@ namespace CxxDependencyVisualizer
             return gd;
         }
 
-        private static Point AttractiveForcesSum(Node node, double k, Dictionary<string, Node> dict)
+        private static Point AttractiveForcesSum(Node node, double k)
         {
             Point result = new Point(0, 0);
-            foreach (var cId in node.children)
+            foreach (var c in node.childNodes)
             {
-                var c = dict[cId];
                 Point v = Util.Sub(c.center, node.center);
                 double len = Util.Len(v);
                 Point fi = Util.Mul(len / k, v);
                 result = Util.Add(result, fi);
             }
-            foreach (var pId in node.parents)
+            foreach (var p in node.parentNodes)
             {
-                var p = dict[pId];
                 Point v = Util.Sub(p.center, node.center);
                 double len = Util.Len(v);
                 Point fi = Util.Mul(len / k, v);
@@ -226,15 +220,15 @@ namespace CxxDependencyVisualizer
             return result;
         }
 
-        private static Point RepulsiveForcesSum(Node node, double k, double c, Dictionary<string, Node> dict)
+        private static Point RepulsiveForcesSum(Node node, double k, double c, List<Node> nodes)
         {
             double numerator = -c * k * k;
             Point result = new Point(0, 0);
-            foreach (var d in dict)
+            foreach (var n in nodes)
             {
-                if (node != d.Value)
+                if (node != n)
                 {
-                    Point v = Util.Sub(d.Value.center, node.center);
+                    Point v = Util.Sub(n.center, node.center);
                     double lenSqr = Util.LenSqr(v);
                     Point fi = Util.Mul(numerator / lenSqr, v);
                     result = Util.Add(result, fi);
