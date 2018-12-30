@@ -163,5 +163,50 @@ namespace CxxDependencyVisualizer
             for (int i = list.Count; i < size; ++i)
                 list.Add(new T());
         }
+
+        public static Point Mul(Point p, double v)
+        {
+            return new Point(p.X * v, p.Y * v);
+        }
+
+        public static Point Mul(double v, Point p)
+        {
+            return Mul(p, v);
+        }
+
+        public static Point Div(Point p, double v)
+        {
+            return new Point(p.X / v, p.Y / v);
+        }
+
+        public static Point Add(Point p, Point q)
+        {
+            return new Point(p.X + q.X, p.Y + q.Y);
+        }
+
+        public static Point Sub(Point p, Point q)
+        {
+            return new Point(p.X - q.X, p.Y - q.Y);
+        }
+
+        public static double Dot(Point p, Point q)
+        {
+            return p.X * q.X + p.Y * q.Y;
+        }
+
+        public static double LenSqr(Point p)
+        {
+            return Dot(p, p);
+        }
+
+        public static double Len(Point p)
+        {
+            return Math.Sqrt(Dot(p, p));
+        }
+
+        public static double Distance(Point p, Point q)
+        {
+            return Len(Sub(p, q));
+        }
     }
 }

@@ -38,8 +38,10 @@ namespace CxxDependencyVisualizer
 
             menu_Layout1.Checked += menu_Layout_Checked;
             menu_Layout2.Checked += menu_Layout_Checked;
+            menu_Layout3.Checked += menu_Layout_Checked;
             menu_Layout1.Unchecked += menu_Layout_Unchecked;
             menu_Layout2.Unchecked += menu_Layout_Unchecked;
+            menu_Layout3.Unchecked += menu_Layout_Unchecked;
             menu_CyclesLinesDistanceSlider.ValueChanged += menu_CyclesLinesDistanceSlider_ValueChanged;
             menu_LinesWidthSlider.ValueChanged += Menu_LinesWidthSlider_ValueChanged;
         }
@@ -58,6 +60,12 @@ namespace CxxDependencyVisualizer
                 menu_Layout2.Unchecked -= menu_Layout_Unchecked;
                 menu_Layout2.IsChecked = false;
                 menu_Layout2.Unchecked += menu_Layout_Unchecked;
+            }
+            if (menuItem != menu_Layout3 && menu_Layout3 != null)
+            {
+                menu_Layout3.Unchecked -= menu_Layout_Unchecked;
+                menu_Layout3.IsChecked = false;
+                menu_Layout3.Unchecked += menu_Layout_Unchecked;
             }
         }
 
@@ -87,15 +95,22 @@ namespace CxxDependencyVisualizer
             activeControls.Reset(data);
             canvas.Children.Clear();
 
-            GraphLayout.UseLevel useLevel = menu_Layout1.IsChecked ? GraphLayout.UseLevel.Min
-                                          : menu_Layout2.IsChecked ? GraphLayout.UseLevel.Max
-                                          : GraphLayout.UseLevel.Min;
-
             // Analyze includes and create dictionary
             data = new LibData(textBoxDir.Text, textBoxFile.Text, true);
 
-            Size graphSize = GraphLayout.LevelBasedLayout(data.dict, useLevel);
-
+            GraphLayout.GraphData gd;
+            if (menu_Layout3.IsChecked)
+            {
+                gd = GraphLayout.ForceDirectedLayout(data.dict);
+            }
+            else
+            {
+                GraphLayout.UseLevel useLevel = menu_Layout2.IsChecked
+                                              ? GraphLayout.UseLevel.Max
+                                              : GraphLayout.UseLevel.Min;
+                gd = GraphLayout.LevelBasedLayout(data.dict, useLevel);
+            }
+            
             // Create textBlocks with borders for each include and calculate
             foreach (var d in data.dict)
             {
@@ -166,12 +181,17 @@ namespace CxxDependencyVisualizer
             }
 
             // calculate the scale of graph in order to fit it to window
-            double scaleW = Math.Min(canvasGrid.ActualWidth / graphSize.Width, 1);
-            double scaleH = Math.Min(canvasGrid.ActualHeight / graphSize.Height, 1);
+            double graphW = gd.GraphSize.Width;
+            double graphH = gd.GraphSize.Height;
+            double graphCenterX = graphW / 2;
+            double graphCenterY = graphH / 2;
+            double scaleW = Math.Min(canvasGrid.ActualWidth / graphW, 1);
+            double scaleH = Math.Min(canvasGrid.ActualHeight / graphH, 1);
             double scale = Math.Min(scaleW, scaleH);
 
             var matrix = Matrix.Identity;
             matrix.Scale(scale, scale);
+            matrix.Translate(canvasGrid.ActualWidth / 2 - graphCenterX * scale, 0);
             canvas.RenderTransform = new MatrixTransform(matrix);
 
             //textBlockStatus.Text = "Done.";

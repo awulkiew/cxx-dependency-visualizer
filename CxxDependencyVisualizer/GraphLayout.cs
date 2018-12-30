@@ -11,7 +11,13 @@ namespace CxxDependencyVisualizer
     {
         public enum UseLevel { Min, Max };
 
-        public static Size LevelBasedLayout(Dictionary<string, Node> dict, UseLevel useLevel)
+        public struct GraphData
+        {
+            public Size CellSize;
+            public Size GraphSize;
+        }
+
+        public static GraphData LevelBasedLayout(Dictionary<string, Node> dict, UseLevel useLevel)
         {
             // Generate containers of levels of inclusion (min or max level found).
             bool useMin = (useLevel == UseLevel.Min);
@@ -86,11 +92,150 @@ namespace CxxDependencyVisualizer
             foreach (var n in gridPositions)
             {
                 PointI position = n.Value;
-                n.Key.center.X = xOrig + position.X * cellSize;
-                n.Key.center.Y = yOrig + position.Y * cellSize;
+                n.Key.center.X = xOrig + (position.X + 0.5) * cellSize;
+                n.Key.center.Y = yOrig + (position.Y + 0.5) * cellSize;
             }
 
-            return new Size(graphWidth, graphHeight);
+            GraphData result;
+            result.GraphSize = new Size(graphWidth + cellSize, graphHeight + cellSize);
+            result.CellSize = new Size(cellSize, cellSize);
+            return result;
+        }
+
+        // https://www.mathematica-journal.com/issue/v10i1/contents/graph_draw/graph_draw.pdf
+        // k - optimal distance or natural spring length
+        // c - regulates  the  relative  strength  of  the  repulsive and  attractive forces
+        public static GraphData ForceDirectedLayout(Dictionary<string, Node> dict)
+        {
+            // initial layout
+            GraphData gd = LevelBasedLayout(dict, UseLevel.Min);
+
+            double k = gd.CellSize.Width;
+            double c = 1;
+            //double tol = 0.0001;
+            double maxIterations = 100;
+            double t = 0.9;
+            double initialStep = gd.CellSize.Width / 10;
+
+            List<Node> x = new List<Node>(dict.Count);
+            foreach (var d in dict)
+                x.Add(d.Value);
+
+            double step = initialStep;
+            double energy = double.PositiveInfinity;
+            int progress = 0;
+
+            for(int iter = 0; iter < maxIterations; ++iter)
+            {
+                /*List<Point> x0 = new List<Point>(x.Count);
+                foreach (Node n in x)
+                    x0.Add(n.center);*/
+                double energy0 = energy;
+                energy = 0;
+
+                for (int i = 0; i < x.Count; ++i)
+                {
+                    Node node = x[i];
+
+                    Point faSum = AttractiveForcesSum(node, k, dict);
+                    Point frSum = RepulsiveForcesSum(node, k, c, dict);
+                    Point f = Util.Add(faSum, frSum);
+                    double fLenSqr = Util.LenSqr(f);
+                    double fLen = Math.Sqrt(fLenSqr);
+
+                    Point fn = Util.Div(f, fLen);
+                    Point fs = Util.Mul(step, fn);
+                    node.center = Util.Add(node.center, fs);
+
+                    energy += fLenSqr;
+                }
+
+                if (energy < energy0)
+                {
+                    ++progress;
+                    if (progress >= 5)
+                    {
+                        progress = 0;
+                        step /= t;
+                    }
+                }
+                else
+                {
+                    progress = 0;
+                    step *= t;
+                }
+                /*
+                double distSum = 0;
+                for(int i = 0; i < x.Count; ++i)
+                {
+                    distSum += Util.Distance(x[i].point, x0[i].point);
+                }*/
+
+                //if (distSum < k * tol)
+                //    break;
+            }
+
+            double minX = double.MaxValue;
+            double minY = double.MaxValue;
+            double maxX = double.MinValue;
+            double maxY = double.MinValue;
+            for (int i = 0; i < x.Count; ++i)
+            {
+                minX = Math.Min(minX, x[i].center.X);
+                minY = Math.Min(minY, x[i].center.Y);
+                maxX = Math.Max(maxX, x[i].center.X);
+                maxY = Math.Max(maxY, x[i].center.Y);
+            }
+
+            for (int i = 0; i < x.Count; ++i)
+            {
+                x[i].center.X += - minX + gd.CellSize.Width / 2;
+                x[i].center.Y += - minY + gd.CellSize.Height / 2;
+            }
+
+            gd.GraphSize.Width = maxX - minX + gd.CellSize.Width;
+            gd.GraphSize.Height = maxY - minY + gd.CellSize.Height;
+
+            return gd;
+        }
+
+        private static Point AttractiveForcesSum(Node node, double k, Dictionary<string, Node> dict)
+        {
+            Point result = new Point(0, 0);
+            foreach (var cId in node.children)
+            {
+                var c = dict[cId];
+                Point v = Util.Sub(c.center, node.center);
+                double len = Util.Len(v);
+                Point fi = Util.Mul(len / k, v);
+                result = Util.Add(result, fi);
+            }
+            foreach (var pId in node.parents)
+            {
+                var p = dict[pId];
+                Point v = Util.Sub(p.center, node.center);
+                double len = Util.Len(v);
+                Point fi = Util.Mul(len / k, v);
+                result = Util.Add(result, fi);
+            }
+            return result;
+        }
+
+        private static Point RepulsiveForcesSum(Node node, double k, double c, Dictionary<string, Node> dict)
+        {
+            double numerator = -c * k * k;
+            Point result = new Point(0, 0);
+            foreach (var d in dict)
+            {
+                if (node != d.Value)
+                {
+                    Point v = Util.Sub(d.Value.center, node.center);
+                    double lenSqr = Util.LenSqr(v);
+                    Point fi = Util.Mul(numerator / lenSqr, v);
+                    result = Util.Add(result, fi);
+                }
+            }
+            return result;
         }
 
         private static List<List<Node>> Levels(Dictionary<string, Node> dict, bool useMinLevel)
