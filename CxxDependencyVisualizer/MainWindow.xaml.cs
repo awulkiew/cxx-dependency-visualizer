@@ -39,9 +39,11 @@ namespace CxxDependencyVisualizer
             menu_Layout1.Checked += menu_Layout_Checked;
             menu_Layout2.Checked += menu_Layout_Checked;
             menu_Layout3.Checked += menu_Layout_Checked;
+            menu_Layout4.Checked += menu_Layout_Checked;
             menu_Layout1.Unchecked += menu_Layout_Unchecked;
             menu_Layout2.Unchecked += menu_Layout_Unchecked;
             menu_Layout3.Unchecked += menu_Layout_Unchecked;
+            menu_Layout4.Unchecked += menu_Layout_Unchecked;
             menu_CyclesLinesDistanceSlider.ValueChanged += menu_CyclesLinesDistanceSlider_ValueChanged;
             menu_LinesWidthSlider.ValueChanged += Menu_LinesWidthSlider_ValueChanged;
         }
@@ -66,6 +68,12 @@ namespace CxxDependencyVisualizer
                 menu_Layout3.Unchecked -= menu_Layout_Unchecked;
                 menu_Layout3.IsChecked = false;
                 menu_Layout3.Unchecked += menu_Layout_Unchecked;
+            }
+            if (menuItem != menu_Layout4 && menu_Layout4 != null)
+            {
+                menu_Layout4.Unchecked -= menu_Layout_Unchecked;
+                menu_Layout4.IsChecked = false;
+                menu_Layout4.Unchecked += menu_Layout_Unchecked;
             }
         }
 
@@ -97,9 +105,13 @@ namespace CxxDependencyVisualizer
             data = new LibData(textBoxDir.Text, textBoxFile.Text, true);
 
             GraphLayout.GraphData gd;
-            if (menu_Layout3.IsChecked)
+            if (menu_Layout4.IsChecked)
             {
                 gd = GraphLayout.ForceDirectedLayout(data.dict);
+            }
+            else if (menu_Layout3.IsChecked)
+            {
+                gd = GraphLayout.RadialHierarchicalLayout(textBoxDir.Text, data.dict);
             }
             else
             {
@@ -107,8 +119,8 @@ namespace CxxDependencyVisualizer
                                               ? GraphLayout.UseLevel.Max
                                               : GraphLayout.UseLevel.Min;
                 gd = GraphLayout.LevelBasedLayout(data.dict, useLevel);
-            }
-            
+            }            
+
             // Create textBlocks with borders for each include and calculate
             foreach (var d in data.dict)
             {

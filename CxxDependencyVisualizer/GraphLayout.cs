@@ -200,6 +200,60 @@ namespace CxxDependencyVisualizer
             return gd;
         }
 
+        public static GraphData RadialHierarchicalLayout(string dir, Dictionary<string, Node> dict)
+        {
+            string dirPath = Util.PathFromDirFile(dir, "");
+            List<DirNode.PathNodePair> inputNodes = new List<DirNode.PathNodePair>();
+            foreach (var d in dict)
+            {
+                if (d.Key.StartsWith(dirPath))
+                {
+                    string path = d.Key.Substring(dirPath.Length);
+                    inputNodes.Add(new DirNode.PathNodePair(path, d.Value));
+                }
+            }
+
+            DirNode hierarchy = DirNode.Create(inputNodes);
+            
+            double maxSize = 0;
+            foreach (var d in dict)
+            {
+                string file = Util.FileFromPath(d.Key);
+                d.Value.size = Util.MeasureTextBlock(file);
+                d.Value.size.Width += 10;
+                d.Value.size.Height += 10;
+                maxSize = Math.Max(maxSize, Math.Max(d.Value.size.Width, d.Value.size.Height));
+            }
+
+            SetRadialPositions(hierarchy, maxSize, 2 * Math.PI / hierarchy.width);
+
+            GraphData result = new GraphData();
+            result.CellSize = new Size(maxSize, maxSize);
+
+            double minX = double.MaxValue;
+            double minY = double.MaxValue;
+            double maxX = double.MinValue;
+            double maxY = double.MinValue;
+            for (int i = 0; i < inputNodes.Count; ++i)
+            {
+                minX = Math.Min(minX, inputNodes[i].node.center.X);
+                minY = Math.Min(minY, inputNodes[i].node.center.Y);
+                maxX = Math.Max(maxX, inputNodes[i].node.center.X);
+                maxY = Math.Max(maxY, inputNodes[i].node.center.Y);
+            }
+
+            for (int i = 0; i < inputNodes.Count; ++i)
+            {
+                inputNodes[i].node.center.X += -minX + result.CellSize.Width / 2;
+                inputNodes[i].node.center.Y += -minY + result.CellSize.Height / 2;
+            }
+
+            result.GraphSize.Width = maxX - minX + result.CellSize.Width;
+            result.GraphSize.Height = maxY - minY + result.CellSize.Height;
+            
+            return result;
+        }
+
         private static Point AttractiveForcesSum(Node node, double k)
         {
             Point result = new Point(0, 0);
@@ -250,6 +304,35 @@ namespace CxxDependencyVisualizer
             return result;
         }
 
+        private static void SetRadialPositions(DirNode node,
+                                               double nodeSize, double angleFactor,
+                                               double widthBegin = 0.0,
+                                               int level = 0)
+        {
+            double angle = node.width * angleFactor;
+            double angleBegin = widthBegin * angleFactor;
+            double angleStep = angle / node.nodes.Count;
+
+            if (level == 0 && node.nodes.Count > 1)
+                level = 1;
+
+            double r = level * nodeSize / angleFactor * 0.33;
+            double a = angleBegin + angleStep * 0.5;
+            foreach (var n in node.nodes)
+            {
+                n.center.X = r * Math.Cos(a);
+                n.center.Y = r * Math.Sin(a);
+                a += angleStep;
+            }
+
+            double w = 0.0;
+            foreach (var ch in node.childDirs)
+            {
+                SetRadialPositions(ch, nodeSize, angleFactor, widthBegin + w, level + 1);
+                w += ch.width;
+            }
+        }        
+
         private struct PointI
         {
             public PointI(int x, int y)
@@ -260,6 +343,90 @@ namespace CxxDependencyVisualizer
 
             public int X;
             public int Y;
+        }
+
+        private class DirNode
+        {
+            public struct PathNodePair
+            {
+                public PathNodePair(string p, Node n)
+                {
+                    path = p;
+                    node = n;
+                }
+                public string path;
+                public Node node;
+            }
+
+            public static DirNode Create(List<PathNodePair> nodes)
+            {
+                DirNode result = CreateHierarchy(nodes);
+                FillLevels(result);
+                return result;
+            }
+
+            private static DirNode CreateHierarchy(List<PathNodePair> nodes)
+            {
+                Dictionary<string, List<PathNodePair>> dict = new Dictionary<string, List<PathNodePair>>();
+                foreach (var n in nodes)
+                {
+                    int i = n.path.IndexOf("\\");
+                    string currentDir = "";
+                    string restOfPath = n.path;
+                    if (i >= 0)
+                    {
+                        currentDir = n.path.Substring(0, i);
+                        restOfPath = n.path.Substring(i + 1);
+                    }
+
+                    if (!dict.ContainsKey(currentDir))
+                        dict.Add(currentDir, new List<PathNodePair>());
+
+                    dict[currentDir].Add(new PathNodePair(restOfPath, n.node));
+                }
+
+                DirNode result = new DirNode();
+
+                foreach(var d in dict)
+                {
+                    if (d.Key != "") // list of directories
+                    {
+                        DirNode ch = CreateHierarchy(d.Value);
+                        result.childDirs.Add(ch);
+                    }
+                    else // list of files
+                    {
+                        foreach(var n in d.Value)
+                        {
+                            result.nodes.Add(n.node);
+                        }
+                    }
+                }
+
+                // ommit empty dir nodes
+                if (result.nodes.Count == 0 && result.childDirs.Count == 1)
+                    result = result.childDirs[0];
+
+                return result;
+            }
+
+            private static void FillLevels(DirNode node, int level = 1)
+            {
+                double wC = 0;
+                foreach (var n in node.childDirs)
+                {
+                    FillLevels(n, level + 1);
+                    wC += n.width;
+                }
+
+                double w = (double)node.nodes.Count / (double)level;
+                node.width = Math.Max(wC, w);
+            }
+
+            public List<Node> nodes = new List<Node>();
+            public List<DirNode> childDirs = new List<DirNode>();
+
+            public double width = 0;
         }
     }
 }

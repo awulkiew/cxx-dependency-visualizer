@@ -27,7 +27,8 @@
                 <MenuItem Header="=">
                     <MenuItem x:Name="menu_Layout1" IsCheckable="True" Header="Layout 1 (Min Level)" IsChecked="True" />
                     <MenuItem x:Name="menu_Layout2" IsCheckable="True" Header="Layout 2 (Max Level)" IsChecked="False" />
-                    <MenuItem x:Name="menu_Layout3" IsCheckable="True" Header="Layout 3 (Force-Directed)" IsChecked="False" />
+                    <MenuItem x:Name="menu_Layout3" IsCheckable="True" Header="Layout 3 (Radial-Hierarchy)" IsChecked="False" />
+                    <MenuItem x:Name="menu_Layout4" IsCheckable="True" Header="Layout 4 (Force-Directed)" IsChecked="False" />
                     <Separator />
                     <MenuItem x:Name="menu_ShowLines" IsCheckable="True" Header="Show Lines" IsChecked="False" />
                     <Separator />
