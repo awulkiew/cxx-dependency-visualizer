@@ -55,8 +55,9 @@ namespace CxxDependencyVisualizer
                     string line = sr.ReadLine();
                     if (!Empty(line))
                     {
-                        int idInclude = line.IndexOf("#include");
-                        if (idInclude >= 0)
+                        int idHash = line.IndexOf("#");
+                        int idInclude = line.IndexOf("include");
+                        if (idHash >= 0 && idInclude >= 0 && idHash < idInclude)
                         {
                             int idBegin = -1;
                             char closingChar = '\0';
@@ -64,7 +65,7 @@ namespace CxxDependencyVisualizer
                                 closingChar = '>';
                             else if ((idBegin = line.IndexOf('"')) >= 0)
                                 closingChar = '"';
-                            int idEnd = idBegin >= 0 ? line.IndexOf(closingChar) : -1;
+                            int idEnd = idBegin >= 0 ? line.IndexOf(closingChar, idBegin + 1) : -1;
                             if (idEnd >= 0 && idBegin <= idEnd)
                             {
                                 string include = line.Substring(idBegin + 1, idEnd - idBegin - 1);
