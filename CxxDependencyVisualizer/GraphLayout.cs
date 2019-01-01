@@ -97,7 +97,8 @@ namespace CxxDependencyVisualizer
             }
 
             GraphData result;
-            result.GraphSize = new Size(graphWidth + cellSize, graphHeight + cellSize);
+            result.GraphSize = new Size(Math.Max(graphWidth + cellSize, 0),
+                                        Math.Max(graphHeight + cellSize, 0));
             result.CellSize = new Size(cellSize, cellSize);
             return result;
         }
@@ -194,8 +195,8 @@ namespace CxxDependencyVisualizer
                 x[i].center.Y += - minY + gd.CellSize.Height / 2;
             }
 
-            gd.GraphSize.Width = maxX - minX + gd.CellSize.Width;
-            gd.GraphSize.Height = maxY - minY + gd.CellSize.Height;
+            gd.GraphSize.Width = Math.Max(maxX - minX + gd.CellSize.Width, 0);
+            gd.GraphSize.Height = Math.Max(maxY - minY + gd.CellSize.Height, 0);
 
             return gd;
         }
@@ -248,8 +249,8 @@ namespace CxxDependencyVisualizer
                 inputNodes[i].node.center.Y += -minY + result.CellSize.Height / 2;
             }
 
-            result.GraphSize.Width = maxX - minX + result.CellSize.Width;
-            result.GraphSize.Height = maxY - minY + result.CellSize.Height;
+            result.GraphSize.Width = Math.Max(maxX - minX + result.CellSize.Width, 0);
+            result.GraphSize.Height = Math.Max(maxY - minY + result.CellSize.Height, 0);
             
             return result;
         }
@@ -300,7 +301,8 @@ namespace CxxDependencyVisualizer
             }
 
             GraphData result;
-            result.GraphSize = new Size(maxX - minX + maxSize, maxY - minY + maxSize);
+            result.GraphSize = new Size(Math.Max(maxX - minX + maxSize, 0),
+                                        Math.Max(maxY - minY + maxSize, 0));
             result.CellSize = new Size(maxSize, maxSize);
             return result;
         }
