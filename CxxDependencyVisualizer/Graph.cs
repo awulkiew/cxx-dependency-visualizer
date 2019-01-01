@@ -116,7 +116,21 @@ namespace CxxDependencyVisualizer
             return result;
         }
 
-        public static bool FindPath(string start, string curr, string end,
+        public static List<string> FindCycle(string header,
+                                             Dictionary<string, Node> dict)
+        {
+            List<string> result = new List<string>();
+            Dictionary<string, int> map = new Dictionary<string, int>();
+            var d = dict[header];
+            foreach (var cStr in d.children)
+                map.Add(cStr, 0);
+            foreach (var cStr in d.children)
+                if (FindPath(cStr, cStr, header, dict, map, result))
+                    return result;
+            return result;
+        }
+
+        private static bool FindPath(string start, string curr, string end,
                                      Dictionary<string, Node> dict,
                                      Dictionary<string, int> map,
                                      List<string> result)
@@ -138,7 +152,7 @@ namespace CxxDependencyVisualizer
             return false;
         }
 
-        public static bool TrackPathBack(string curr, string start,
+        private static bool TrackPathBack(string curr, string start,
                                           Dictionary<string, Node> dict,
                                           Dictionary<string, int> map,
                                           List<string> result)
@@ -161,21 +175,7 @@ namespace CxxDependencyVisualizer
             return false;
         }
 
-        public static List<string> FindCycle(string header,
-                                             Dictionary<string, Node> dict)
-        {
-            List<string> result = new List<string>();
-            Dictionary<string, int> map = new Dictionary<string, int>();
-            var d = dict[header];
-            foreach (var cStr in d.children)
-                map.Add(cStr, 0);
-            foreach (var cStr in d.children)
-                if (FindPath(cStr, cStr, header, dict, map, result))
-                    return result;
-            return result;
-        }
-
-        public static bool UpdateMap(Dictionary<string, int> map, string n, int l)
+        private static bool UpdateMap(Dictionary<string, int> map, string n, int l)
         {
             if (!map.ContainsKey(n))
             {
