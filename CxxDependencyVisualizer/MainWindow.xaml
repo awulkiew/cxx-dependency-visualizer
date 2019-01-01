@@ -5,70 +5,13 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:CxxDependencyVisualizer"
         mc:Ignorable="d"
-        Title="C++ Dependency Visualizer" Height="450" Width="800" Loaded="Window_Loaded">
+        Title="C++ Dependency Visualizer" Height="600" Width="800" Loaded="Window_Loaded">
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="1*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-        <Grid Grid.Row="0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="1*" />
-                <ColumnDefinition Width="1*" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <TextBox Grid.Column="0" x:Name="textBoxDir" Height="23" TextWrapping="NoWrap"
-                     Text="D:\lib\modular-boost\libs\geometry\include" />
-            <TextBox Grid.Column="1" x:Name="textBoxFile" Height="23" TextWrapping="NoWrap"
-                     Text="boost/geometry.hpp" />
-            <Menu Grid.Column="2">
-                <MenuItem Header="=">
-                    <MenuItem x:Name="menu_Layout1" IsCheckable="True" Header="Layout 1 (Min Level)" IsChecked="True" />
-                    <MenuItem x:Name="menu_Layout2" IsCheckable="True" Header="Layout 2 (Max Level)" IsChecked="False" />
-                    <MenuItem x:Name="menu_Layout3" IsCheckable="True" Header="Layout 3 (Radial-Hierarchy)" IsChecked="False" />
-                    <MenuItem x:Name="menu_Layout4" IsCheckable="True" Header="Layout 4 (Force-Directed)" IsChecked="False" />
-                    <Separator />
-                    <MenuItem x:Name="menu_ShowLines" IsCheckable="True" Header="Show Lines" IsChecked="False" />
-                    <Separator />
-                    <Grid MinWidth="128">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-                        <Label Grid.Row="0" Content="Lines Width" />
-                        <Grid Grid.Row="1">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <Label Width="24" x:Name="menu_LinesWidthLabel" Grid.Column="0" Content="2"/>
-                            <Slider x:Name="menu_LinesWidthSlider" Grid.Column="1" Minimum="1" Maximum="10" Value="2" />
-                        </Grid>
-                    </Grid>
-                    <Separator />
-                    <Grid MinWidth="128">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-                        <Label Grid.Row="0" Content="Cycles Separation"/>
-                        <Grid Grid.Row="1">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="1*" />
-                            </Grid.ColumnDefinitions>
-                            <Label Width="32" x:Name="menu_CyclesLinesDistanceLabel" Grid.Column="0" Content="25"/>
-                            <Slider x:Name="menu_CyclesLinesDistanceSlider" Grid.Column="1" Minimum="10" Maximum="100" Value="25" />
-                        </Grid>
-                    </Grid>
-                </MenuItem>
-            </Menu>
-            <Button Grid.Column="3" x:Name="buttonAnalyze" Content="Analyze" Width="75" Height="23"
-                    Click="buttonAnalyze_Click"/>
-        </Grid>
-        <Grid Grid.Row="1" x:Name="canvasGrid" ClipToBounds="True" Background="White"
+        <Grid Grid.Row="0" x:Name="canvasGrid" ClipToBounds="True" Background="White"
               SizeChanged="canvasGrid_SizeChanged"
               MouseWheel="canvasGrid_MouseWheel"
               MouseDown="canvasGrid_MouseDown"
@@ -86,13 +29,60 @@
                 </Canvas.RenderTransform>
             </Canvas>
         </Grid>
-        <Grid Grid.Row="2">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="1*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <TextBox Grid.Column="0" x:Name="textBoxFind" Height="23" TextWrapping="NoWrap" Text="" />
-            <Button Grid.Column="2" x:Name="buttonFind" Content="Find" Width="75" Height="23" Click="buttonFind_Click" />
+        <Grid Grid.Row="0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="1*" />
+                </Grid.RowDefinitions>
+                <Button Grid.Row="0" x:Name="menuButton" Content="&#x2630;" FontSize="20" Background="White" BorderBrush="Silver" HorizontalAlignment="Left" VerticalAlignment="Top" Width="32" Click="menuButton_Click"/>
+                <Border Grid.Row="1" x:Name="menuBorder" BorderThickness="1" BorderBrush="Silver" HorizontalAlignment="Left">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="1*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Background="White" HorizontalAlignment="Left">
+                            <Label Content="Include Directory" Margin="5,5,5,0"/>
+                            <TextBox x:Name="textBoxDir" Height="23" Width="200" Margin="10,0" TextWrapping="NoWrap"
+                                 Text="D:\lib\modular-boost\libs\geometry\include" />
+                            <Label Content="Header File" Margin="5,5,5,0"/>
+                            <TextBox x:Name="textBoxFile" Height="23" Width="200" Margin="10,0,10,10" TextWrapping="NoWrap"
+                                 Text="boost/geometry.hpp" />
+                            <RadioButton x:Name="menu_Layout1" Content="Layout 1 (Min Level)" Margin="10,0" IsChecked="True" />
+                            <RadioButton x:Name="menu_Layout2" Content="Layout 2 (Max Level)" Margin="10,0" />
+                            <RadioButton x:Name="menu_Layout3" Content="Layout 3 (Radial-Hierarchy)" Margin="10,0" />
+                            <RadioButton x:Name="menu_Layout4" Content="Layout 4 (Force-Directed)" Margin="10,0" />
+                            <CheckBox x:Name="menu_ShowLines" Content="Show Lines" Margin="10,10,10,0"/>
+                            <Label Content="Lines Width" Margin="5,10,5,0"/>
+                            <Grid Margin="10,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Label Width="32" x:Name="menu_LinesWidthLabel" Grid.Column="0" Content="2"/>
+                                <Slider x:Name="menu_LinesWidthSlider" Grid.Column="1" Minimum="1" Maximum="10" Value="2" />
+                            </Grid>
+                            <Label Content="Cycles Separation" Margin="5,10,5,0"/>
+                            <Grid Margin="10,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="1*" />
+                                </Grid.ColumnDefinitions>
+                                <Label Width="32" x:Name="menu_CyclesLinesDistanceLabel" Grid.Column="0" Content="25"/>
+                                <Slider x:Name="menu_CyclesLinesDistanceSlider" Grid.Column="1" Minimum="10" Maximum="100" Value="25" />
+                            </Grid>
+                            <Button x:Name="buttonAnalyze" Content="Analyze" Margin="10,10"
+                                Click="buttonAnalyze_Click" />
+                        </StackPanel>
+                        <StackPanel Grid.Row="1" Background="White" HorizontalAlignment="Left">
+                            <Label Content="Find" Margin="5,10,5,0" />
+                            <TextBox Grid.Column="0" x:Name="textBoxFind" Height="23" Width="200" Margin="10,0" TextWrapping="NoWrap" Text="" />
+                            <Button Grid.Column="2" x:Name="buttonFind" Content="Find" Margin="10,5,10,10" Click="buttonFind_Click" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
         </Grid>
     </Grid>
 </Window>

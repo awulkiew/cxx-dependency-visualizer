@@ -36,53 +36,16 @@ namespace CxxDependencyVisualizer
         {
             this.WindowState = WindowState.Maximized;
 
-            menu_Layout1.Checked += menu_Layout_Checked;
-            menu_Layout2.Checked += menu_Layout_Checked;
-            menu_Layout3.Checked += menu_Layout_Checked;
-            menu_Layout4.Checked += menu_Layout_Checked;
-            menu_Layout1.Unchecked += menu_Layout_Unchecked;
-            menu_Layout2.Unchecked += menu_Layout_Unchecked;
-            menu_Layout3.Unchecked += menu_Layout_Unchecked;
-            menu_Layout4.Unchecked += menu_Layout_Unchecked;
             menu_CyclesLinesDistanceSlider.ValueChanged += menu_CyclesLinesDistanceSlider_ValueChanged;
             menu_LinesWidthSlider.ValueChanged += Menu_LinesWidthSlider_ValueChanged;
         }
 
-        private void menu_Layout_Checked(object sender, RoutedEventArgs e)
+        private void menuButton_Click(object sender, RoutedEventArgs e)
         {
-            var menuItem = sender as MenuItem;
-            if (menuItem != menu_Layout1 && menu_Layout1 != null)
-            {
-                menu_Layout1.Unchecked -= menu_Layout_Unchecked;
-                menu_Layout1.IsChecked = false;
-                menu_Layout1.Unchecked += menu_Layout_Unchecked;
-            }
-            if (menuItem != menu_Layout2 && menu_Layout2 != null)
-            {
-                menu_Layout2.Unchecked -= menu_Layout_Unchecked;
-                menu_Layout2.IsChecked = false;
-                menu_Layout2.Unchecked += menu_Layout_Unchecked;
-            }
-            if (menuItem != menu_Layout3 && menu_Layout3 != null)
-            {
-                menu_Layout3.Unchecked -= menu_Layout_Unchecked;
-                menu_Layout3.IsChecked = false;
-                menu_Layout3.Unchecked += menu_Layout_Unchecked;
-            }
-            if (menuItem != menu_Layout4 && menu_Layout4 != null)
-            {
-                menu_Layout4.Unchecked -= menu_Layout_Unchecked;
-                menu_Layout4.IsChecked = false;
-                menu_Layout4.Unchecked += menu_Layout_Unchecked;
-            }
-        }
-
-        private void menu_Layout_Unchecked(object sender, RoutedEventArgs e)
-        {
-            var menuItem = sender as MenuItem;
-            menuItem.Checked -= menu_Layout_Checked;
-            menuItem.IsChecked = true;
-            menuItem.Checked += menu_Layout_Checked;
+            if (menuBorder.Visibility == Visibility.Visible)
+                menuBorder.Visibility = Visibility.Hidden;
+            else
+                menuBorder.Visibility = Visibility.Visible;
         }
 
         private void menu_CyclesLinesDistanceSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -105,17 +68,17 @@ namespace CxxDependencyVisualizer
             data = new LibData(textBoxDir.Text, textBoxFile.Text, true);
 
             GraphLayout.GraphData gd;
-            if (menu_Layout4.IsChecked)
+            if ((bool)menu_Layout4.IsChecked)
             {
                 gd = GraphLayout.ForceDirectedLayout(data.dict);
             }
-            else if (menu_Layout3.IsChecked)
+            else if ((bool)menu_Layout3.IsChecked)
             {
                 gd = GraphLayout.RadialHierarchicalLayout(textBoxDir.Text, data.dict);
             }
             else
             {
-                GraphLayout.UseLevel useLevel = menu_Layout2.IsChecked
+                GraphLayout.UseLevel useLevel = (bool)menu_Layout2.IsChecked
                                               ? GraphLayout.UseLevel.Max
                                               : GraphLayout.UseLevel.Min;
                 gd = GraphLayout.LevelBasedLayout(data.dict, useLevel);
@@ -147,10 +110,7 @@ namespace CxxDependencyVisualizer
 
                 Border border = new Border();
                 border.BorderThickness = new Thickness(1);
-                if (d.Value.important)
-                    border.BorderBrush = Brushes.Blue;
-                else
-                    border.BorderBrush = Brushes.Black;
+                border.BorderBrush = Brushes.Blue;
                 border.Child = textBlock;
                 double l = d.Value.center.X - d.Value.textBlock.Width / 2;
                 double t = d.Value.center.Y - d.Value.textBlock.Height / 2;
@@ -162,7 +122,7 @@ namespace CxxDependencyVisualizer
             }
 
             // add all lines - connections between includes
-            if (menu_ShowLines.IsChecked)
+            if ((bool)menu_ShowLines.IsChecked)
             {
                 foreach (var d in data.dict)
                 {
@@ -229,6 +189,8 @@ namespace CxxDependencyVisualizer
                     matrix.TranslatePrepend(xOff, yOff);
                     transform.Matrix = matrix;
 
+                    TextBlock_MouseDown(d.Value.textBlock, null);
+
                     break;
                 }
             }
@@ -249,10 +211,7 @@ namespace CxxDependencyVisualizer
 
                     Border borderActive = tb.Parent as Border;
                     borderActive.BorderThickness = new Thickness(1);
-                    if (d.important)
-                        borderActive.BorderBrush = Brushes.Blue;
-                    else
-                        borderActive.BorderBrush = Brushes.Black;
+                    borderActive.BorderBrush = Brushes.Blue;
                 }
                 textBlocks.Clear();
 

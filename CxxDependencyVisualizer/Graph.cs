@@ -36,7 +36,6 @@ namespace CxxDependencyVisualizer
         // graph
         public List<string> children = new List<string>();
         public List<string> parents = new List<string>();
-        public bool important = true;
         public int minLevel = int.MaxValue;
         public int maxLevel = int.MinValue;
         public bool duplicatedChildren = false;
@@ -79,12 +78,18 @@ namespace CxxDependencyVisualizer
             }
             else
             {
+                if (fromLibOnly && !File.Exists(path))
+                    return;
+
                 List<string> children = Util.GetIncludePaths(dir, path);
                 Node data = new Node(parentPath, level);
-                data.important = File.Exists(path);
                 foreach (string c in children)
-                    if (!fromLibOnly || File.Exists(c))
-                        data.AddChild(c);
+                {
+                    if (fromLibOnly && !File.Exists(c))
+                        continue;
+
+                    data.AddChild(c);
+                }
 
                 dict.Add(path, data);
 
