@@ -108,7 +108,7 @@ namespace CxxDependencyVisualizer
         public static GraphData ForceDirectedLayout(Dictionary<string, Node> dict)
         {
             // initial layout
-            GraphData gd = LevelBasedLayout(dict, UseLevel.Min);
+            GraphData gd = SquareLayout(dict);
 
             double k = gd.CellSize.Width;
             double c = 1;
@@ -254,6 +254,57 @@ namespace CxxDependencyVisualizer
             return result;
         }
 
+        private static GraphData SquareLayout(Dictionary<string, Node> dict)
+        {
+            int rowCount = (int)(Math.Sqrt(dict.Count) + 0.5);
+
+            double maxSize = 0;
+            foreach (var d in dict)
+            {
+                string file = Util.FileFromPath(d.Key);
+                d.Value.size = Util.MeasureTextBlock(file);
+                d.Value.size.Width += 10;
+                d.Value.size.Height += 10;
+                maxSize = Math.Max(maxSize, Math.Max(d.Value.size.Width, d.Value.size.Height));
+            }
+
+            double minX = double.MaxValue;
+            double minY = double.MaxValue;
+            double maxX = double.MinValue;
+            double maxY = double.MinValue;
+            int i = 0;
+            int j = 0;
+            foreach (var d in dict)
+            {
+                double x = i * maxSize;
+                double y = j * maxSize;
+                d.Value.center.X = x;
+                d.Value.center.Y = y;
+                minX = Math.Min(minX, x);
+                minY = Math.Min(minY, y);
+                maxX = Math.Max(maxX, x);
+                maxY = Math.Max(maxY, y);
+
+                ++i;
+                if (i >= rowCount)
+                {
+                    ++j;
+                    i = 0;
+                }
+            }
+
+            foreach (var d in dict)
+            {
+                d.Value.center.X += 0.5 * maxSize;
+                d.Value.center.Y += 0.5 * maxSize;
+            }
+
+            GraphData result;
+            result.GraphSize = new Size(maxX - minX + maxSize, maxY - minY + maxSize);
+            result.CellSize = new Size(maxSize, maxSize);
+            return result;
+        }
+
         private static Point AttractiveForcesSum(Node node, double k)
         {
             Point result = new Point(0, 0);
@@ -284,7 +335,13 @@ namespace CxxDependencyVisualizer
                 {
                     Point v = Util.Sub(n.center, node.center);
                     double lenSqr = Util.LenSqr(v);
-                    Point fi = Util.Mul(numerator / lenSqr, v);
+                    // ignore for now
+                    // alternative: use all nodes centroid, so push outward the whole graph
+                    //   problem: node may be in the center, so same situation
+                    if (lenSqr == 0)
+                        continue;
+                    double factor = numerator / lenSqr;
+                    Point fi = Util.Mul(factor, v);
                     result = Util.Add(result, fi);
                 }
             }
