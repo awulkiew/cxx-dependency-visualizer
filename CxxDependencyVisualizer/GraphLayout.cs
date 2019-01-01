@@ -23,7 +23,7 @@ namespace CxxDependencyVisualizer
             bool useMin = (useLevel == UseLevel.Min);
             List<List<Node>> levels = Levels(dict, useMin);
 
-            Dictionary<Node, PointI> gridPositions = new Dictionary<Node, PointI>();
+            double cellSize = CalculateNodeSizes(dict);
 
             // Simple layout algorithm based on include level
             List<int> counts = new List<int>();
@@ -50,57 +50,16 @@ namespace CxxDependencyVisualizer
                     }
 
                     int shift = Math.Min(medianCount, remaining) - 1;
-                    PointI position = new PointI(-shift / 2 + x, y);
-                    ++x;
 
-                    gridPositions.Add(lvl[j], position);
+                    lvl[j].center.X = (-shift / 2 + x) * cellSize;
+                    lvl[j].center.Y = y * cellSize;
+
+                    ++x;
                 }
                 ++y;
             }
 
-            // Calculate bounding box in graph grid coordinates
-            //   and max size
-            int minX = int.MaxValue;
-            int minY = int.MaxValue;
-            int maxX = int.MinValue;
-            int maxY = int.MinValue;
-            double maxSize = 0;
-            foreach (var d in dict)
-            {
-                PointI position = gridPositions[d.Value];
-                minX = Math.Min(minX, position.X);
-                minY = Math.Min(minY, position.Y);
-                maxX = Math.Max(maxX, position.X);
-                maxY = Math.Max(maxY, position.Y);
-
-                string file = Util.FileFromPath(d.Key);
-                d.Value.size = Util.MeasureTextBlock(file);
-                d.Value.size.Width += 10;
-                d.Value.size.Height += 10;
-                maxSize = Math.Max(maxSize, Math.Max(d.Value.size.Width, d.Value.size.Height));
-            }
-
-            // Calculate the size of graph in canvas coordinates
-            // from bounding box in graph grid coordinates
-            int graphW = maxX - minX;
-            int graphH = maxY - minY;
-            double cellSize = maxSize;
-            double graphWidth = cellSize * graphW;
-            double graphHeight = cellSize * graphH;
-            double xOrig = graphWidth / 2;
-            double yOrig = 0;
-            foreach (var n in gridPositions)
-            {
-                PointI position = n.Value;
-                n.Key.center.X = xOrig + (position.X + 0.5) * cellSize;
-                n.Key.center.Y = yOrig + (position.Y + 0.5) * cellSize;
-            }
-
-            GraphData result;
-            result.GraphSize = new Size(Math.Max(graphWidth + cellSize, 0),
-                                        Math.Max(graphHeight + cellSize, 0));
-            result.CellSize = new Size(cellSize, cellSize);
-            return result;
+            return NormalizeNodePositions(dict, new Size(cellSize, cellSize));
         }
 
         // https://www.mathematica-journal.com/issue/v10i1/contents/graph_draw/graph_draw.pdf
@@ -177,28 +136,7 @@ namespace CxxDependencyVisualizer
                     break;*/
             }
 
-            double minX = double.MaxValue;
-            double minY = double.MaxValue;
-            double maxX = double.MinValue;
-            double maxY = double.MinValue;
-            for (int i = 0; i < x.Count; ++i)
-            {
-                minX = Math.Min(minX, x[i].center.X);
-                minY = Math.Min(minY, x[i].center.Y);
-                maxX = Math.Max(maxX, x[i].center.X);
-                maxY = Math.Max(maxY, x[i].center.Y);
-            }
-
-            for (int i = 0; i < x.Count; ++i)
-            {
-                x[i].center.X += - minX + gd.CellSize.Width / 2;
-                x[i].center.Y += - minY + gd.CellSize.Height / 2;
-            }
-
-            gd.GraphSize.Width = Math.Max(maxX - minX + gd.CellSize.Width, 0);
-            gd.GraphSize.Height = Math.Max(maxY - minY + gd.CellSize.Height, 0);
-
-            return gd;
+            return NormalizeNodePositions(dict, gd.CellSize);
         }
 
         public static GraphData RadialHierarchicalLayout(string dir, Dictionary<string, Node> dict)
@@ -228,63 +166,23 @@ namespace CxxDependencyVisualizer
 
             SetRadialPositions(hierarchy, maxSize, 2 * Math.PI / hierarchy.width);
 
-            GraphData result = new GraphData();
-            result.CellSize = new Size(maxSize, maxSize);
-
-            double minX = double.MaxValue;
-            double minY = double.MaxValue;
-            double maxX = double.MinValue;
-            double maxY = double.MinValue;
-            for (int i = 0; i < inputNodes.Count; ++i)
-            {
-                minX = Math.Min(minX, inputNodes[i].node.center.X);
-                minY = Math.Min(minY, inputNodes[i].node.center.Y);
-                maxX = Math.Max(maxX, inputNodes[i].node.center.X);
-                maxY = Math.Max(maxY, inputNodes[i].node.center.Y);
-            }
-
-            for (int i = 0; i < inputNodes.Count; ++i)
-            {
-                inputNodes[i].node.center.X += -minX + result.CellSize.Width / 2;
-                inputNodes[i].node.center.Y += -minY + result.CellSize.Height / 2;
-            }
-
-            result.GraphSize.Width = Math.Max(maxX - minX + result.CellSize.Width, 0);
-            result.GraphSize.Height = Math.Max(maxY - minY + result.CellSize.Height, 0);
-            
-            return result;
+            return NormalizeNodePositions(dict, new Size(maxSize, maxSize));
         }
 
         private static GraphData SquareLayout(Dictionary<string, Node> dict)
         {
             int rowCount = (int)(Math.Sqrt(dict.Count) + 0.5);
 
-            double maxSize = 0;
-            foreach (var d in dict)
-            {
-                string file = Util.FileFromPath(d.Key);
-                d.Value.size = Util.MeasureTextBlock(file);
-                d.Value.size.Width += 10;
-                d.Value.size.Height += 10;
-                maxSize = Math.Max(maxSize, Math.Max(d.Value.size.Width, d.Value.size.Height));
-            }
+            double cellSize = CalculateNodeSizes(dict);
 
-            double minX = double.MaxValue;
-            double minY = double.MaxValue;
-            double maxX = double.MinValue;
-            double maxY = double.MinValue;
             int i = 0;
             int j = 0;
             foreach (var d in dict)
             {
-                double x = i * maxSize;
-                double y = j * maxSize;
+                double x = i * cellSize;
+                double y = j * cellSize;
                 d.Value.center.X = x;
                 d.Value.center.Y = y;
-                minX = Math.Min(minX, x);
-                minY = Math.Min(minY, y);
-                maxX = Math.Max(maxX, x);
-                maxY = Math.Max(maxY, y);
 
                 ++i;
                 if (i >= rowCount)
@@ -294,16 +192,60 @@ namespace CxxDependencyVisualizer
                 }
             }
 
+            return NormalizeNodePositions(dict, new Size(cellSize, cellSize));
+        }
+
+        private static double CalculateNodeSizes(Dictionary<string, Node> dict)
+        {
+            double maxSize = 0;
             foreach (var d in dict)
             {
-                d.Value.center.X += 0.5 * maxSize;
-                d.Value.center.Y += 0.5 * maxSize;
+                string file = Util.FileFromPath(d.Key);
+                d.Value.size = Util.MeasureTextBlock(file);
+                d.Value.size.Width += 10;
+                d.Value.size.Height += 10;
+                maxSize = Math.Max(maxSize, Math.Max(d.Value.size.Width, d.Value.size.Height));
+            }
+            return maxSize;
+        }
+
+        private static GraphData NormalizeNodePositions(Dictionary<string, Node> dict, Size cellSize)
+        {
+            double minX = double.MaxValue;
+            double minY = double.MaxValue;
+            double maxX = double.MinValue;
+            double maxY = double.MinValue;
+            foreach (var d in dict)
+            {
+                minX = Math.Min(minX, d.Value.center.X);
+                minY = Math.Min(minY, d.Value.center.Y);
+                maxX = Math.Max(maxX, d.Value.center.X);
+                maxY = Math.Max(maxY, d.Value.center.Y);
+            }
+
+            foreach (var d in dict)
+            {
+                d.Value.center.X += -minX + 0.5 * cellSize.Width;
+                d.Value.center.Y += -minY + 0.5 * cellSize.Height;
             }
 
             GraphData result;
-            result.GraphSize = new Size(Math.Max(maxX - minX + maxSize, 0),
-                                        Math.Max(maxY - minY + maxSize, 0));
-            result.CellSize = new Size(maxSize, maxSize);
+            result.GraphSize = new Size(Math.Max(maxX - minX + cellSize.Width, 0),
+                                        Math.Max(maxY - minY + cellSize.Height, 0));
+            result.CellSize = cellSize;
+            return result;
+        }
+
+        private static List<List<Node>> Levels(Dictionary<string, Node> dict, bool useMinLevel)
+        {
+            // Generate containers of levels of inclusion (min or max level found).
+            List<List<Node>> result = new List<List<Node>>();
+            foreach (var d in dict)
+            {
+                int level = useMinLevel ? d.Value.minLevel : d.Value.maxLevel;
+                Util.Resize(result, level + 1);
+                result[level].Add(d.Value);
+            }
             return result;
         }
 
@@ -350,19 +292,6 @@ namespace CxxDependencyVisualizer
             return result;
         }
 
-        private static List<List<Node>> Levels(Dictionary<string, Node> dict, bool useMinLevel)
-        {
-            // Generate containers of levels of inclusion (min or max level found).
-            List<List<Node>> result = new List<List<Node>>();
-            foreach (var d in dict)
-            {
-                int level = useMinLevel ? d.Value.minLevel : d.Value.maxLevel;
-                Util.Resize(result, level + 1);
-                result[level].Add(d.Value);
-            }
-            return result;
-        }
-
         private static void SetRadialPositions(DirNode node,
                                                double nodeSize, double angleFactor,
                                                double widthBegin = 0.0,
@@ -391,18 +320,6 @@ namespace CxxDependencyVisualizer
                 w += ch.width;
             }
         }        
-
-        private struct PointI
-        {
-            public PointI(int x, int y)
-            {
-                X = x;
-                Y = y;
-            }
-
-            public int X;
-            public int Y;
-        }
 
         private class DirNode
         {
