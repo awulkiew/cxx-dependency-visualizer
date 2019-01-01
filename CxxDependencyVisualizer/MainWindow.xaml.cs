@@ -230,11 +230,11 @@ namespace CxxDependencyVisualizer
 
             public enum ColorId { Selected = 0, Child = 1, Parent = 2 };
 
-            public void Select(TextBlock textBlock, ColorId colorId)
+            public void Select(TextBlock textBlock, ColorId colorId, double linesThickness)
             {
                 var border = textBlock.Parent as Border;
                 border.BorderBrush = brushes[(int)colorId];
-                border.BorderThickness = new Thickness(2);
+                border.BorderThickness = new Thickness(linesThickness);
                 textBlocks.Add(textBlock);
             }
             
@@ -312,9 +312,9 @@ namespace CxxDependencyVisualizer
             activeControls.Reset(data);
             
             if (lastTextBlock != null)
-                activeControls.Select(lastTextBlock, ActiveControls.ColorId.Selected);
+                activeControls.Select(lastTextBlock, ActiveControls.ColorId.Selected, linesThickness);
 
-            activeControls.Select(textBlock, ActiveControls.ColorId.Selected);
+            activeControls.Select(textBlock, ActiveControls.ColorId.Selected, linesThickness);
 
             // select chldren and parents
             if (lastTextBlock == null)
@@ -323,13 +323,13 @@ namespace CxxDependencyVisualizer
                 foreach (var c in d.children)
                 {
                     var child = data.dict[c];
-                    activeControls.Select(child.textBlock, ActiveControls.ColorId.Child);
+                    activeControls.Select(child.textBlock, ActiveControls.ColorId.Child, linesThickness);
                     activeControls.Add(d.center, child.center, ActiveControls.ColorId.Child, linesThickness);
                 }
                 foreach (var p in d.parents)
                 {
                     var parent = data.dict[p];
-                    activeControls.Select(parent.textBlock, ActiveControls.ColorId.Parent);
+                    activeControls.Select(parent.textBlock, ActiveControls.ColorId.Parent, linesThickness);
                     activeControls.Add(d.center, parent.center, ActiveControls.ColorId.Parent, linesThickness);
                 }    
             }
@@ -362,7 +362,7 @@ namespace CxxDependencyVisualizer
                         // intermediate index
                         // edge borders are already handled
                         if (i > 0)
-                            activeControls.Select(d.textBlock, selectedType);
+                            activeControls.Select(d.textBlock, selectedType, linesThickness);
 
                         // handle lines from previous (parent) to child (current)
                         var child = data.dict[path[i + 1]];
@@ -409,7 +409,7 @@ namespace CxxDependencyVisualizer
                     foreach(var s in cycle)
                     {
                         var curr = data.dict[s];
-                        activeControls.Select(curr.textBlock, ActiveControls.ColorId.Selected);
+                        activeControls.Select(curr.textBlock, ActiveControls.ColorId.Selected, linesThickness);
 
                         PathFigure fig = new PathFigure();
                         fig.StartPoint = prev.center;
