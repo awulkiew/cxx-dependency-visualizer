@@ -23,8 +23,10 @@ namespace CxxDependencyVisualizer
     public partial class MainWindow : Window
     {
         LibData data = new LibData();
+        List<Line> lines = new List<Line>();
         ActiveControls activeControls = null;
-        
+        GraphLayout.GraphData gd;
+
         public MainWindow()
         {
             InitializeComponent();
@@ -48,26 +50,43 @@ namespace CxxDependencyVisualizer
                 menuBorder.Visibility = Visibility.Visible;
         }
 
+        private void menu_ShowLines_Checked(object sender, RoutedEventArgs e)
+        {
+            foreach (var line in lines)
+                line.Visibility = Visibility.Visible;
+        }
+
+        private void menu_ShowLines_Unchecked(object sender, RoutedEventArgs e)
+        {
+            foreach (var line in lines)
+                line.Visibility = Visibility.Hidden;
+        }
+
         private void menu_CyclesLinesDistanceSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             menu_CyclesLinesDistanceLabel.Content = (int)menu_CyclesLinesDistanceSlider.Value;
+
+            activeControls.SetCyclesSeparation(gd.CellSize.Width * menu_CyclesLinesDistanceSlider.Value / 100,
+                                               menu_LinesWidthSlider.Value);
         }
 
         private void Menu_LinesWidthSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             menu_LinesWidthLabel.Content = (int)menu_LinesWidthSlider.Value;
+
+            activeControls.SetLineThickness(menu_LinesWidthSlider.Value);
         }
 
         private void buttonAnalyze_Click(object sender, RoutedEventArgs e)
         {
             // Clear states
             activeControls.Reset(data);
+            lines.Clear();
             canvas.Children.Clear();
 
             // Analyze includes and create dictionary
             data = new LibData(textBoxDir.Text, textBoxFile.Text, true);
 
-            GraphLayout.GraphData gd;
             if ((bool)menu_Layout4.IsChecked)
             {
                 gd = GraphLayout.ForceDirectedLayout(data.dict);
@@ -82,7 +101,7 @@ namespace CxxDependencyVisualizer
                                               ? GraphLayout.UseLevel.Max
                                               : GraphLayout.UseLevel.Min;
                 gd = GraphLayout.LevelBasedLayout(data.dict, useLevel);
-            }            
+            }
 
             // Create textBlocks with borders for each include and calculate
             foreach (var d in data.dict)
@@ -122,31 +141,30 @@ namespace CxxDependencyVisualizer
             }
 
             // add all lines - connections between includes
-            if ((bool)menu_ShowLines.IsChecked)
+            foreach (var d in data.dict)
             {
-                foreach (var d in data.dict)
+                double x = d.Value.center.X;
+                double y = d.Value.center.Y;
+
+                foreach (var cStr in d.Value.children)
                 {
-                    double x = d.Value.center.X;
-                    double y = d.Value.center.Y;
+                    var c = data.dict[cStr];
 
-                    foreach (var cStr in d.Value.children)
-                    {
-                        var c = data.dict[cStr];
+                    double xC = c.center.X;
+                    double yC = c.center.Y;
 
-                        double xC = c.center.X;
-                        double yC = c.center.Y;
+                    var line = new Line();
+                    line.X1 = x;
+                    line.Y1 = y;
+                    line.X2 = xC;
+                    line.Y2 = yC;
+                    line.Stroke = Brushes.DarkGray;
+                    line.StrokeThickness = 1;
+                    line.Visibility = (bool)menu_ShowLines.IsChecked ? Visibility.Visible : Visibility.Hidden;
+                    Canvas.SetZIndex(line, -1);
 
-                        var line = new Line();
-                        line.X1 = x;
-                        line.Y1 = y;
-                        line.X2 = xC;
-                        line.Y2 = yC;
-                        line.Stroke = Brushes.DarkGray;
-                        line.StrokeThickness = 1;
-                        Canvas.SetZIndex(line, -1);
-
-                        canvas.Children.Add(line);
-                    }
+                    lines.Add(line);
+                    canvas.Children.Add(line);
                 }
             }
 
@@ -221,24 +239,25 @@ namespace CxxDependencyVisualizer
                 }
                 lines.Clear();
 
-                foreach(var shape in shapes)
+                foreach(var path in paths)
                 {
-                    canvas.Children.Remove(shape);
+                    canvas.Children.Remove(path);
                 }
-                shapes.Clear();
+                pathsPoints.Clear();
+                paths.Clear();
             }
 
             public enum ColorId { Selected = 0, Child = 1, Parent = 2 };
 
-            public void Select(TextBlock textBlock, ColorId colorId, double linesThickness)
+            public void Select(TextBlock textBlock, ColorId colorId)
             {
                 var border = textBlock.Parent as Border;
                 border.BorderBrush = brushes[(int)colorId];
-                border.BorderThickness = new Thickness(linesThickness);
+                border.BorderThickness = new Thickness(1);
                 textBlocks.Add(textBlock);
             }
             
-            public void Add(Point p0, Point p1, ColorId colorId, double linesThickness)
+            public void AddLine(Point p0, Point p1, ColorId colorId)
             {
                 var line = new Line();
                 line.X1 = p0.X;
@@ -246,27 +265,53 @@ namespace CxxDependencyVisualizer
                 line.X2 = p1.X;
                 line.Y2 = p1.Y;
                 line.Stroke = brushes[(int)colorId];
-                line.StrokeThickness = linesThickness;
+                line.StrokeThickness = 1;
 
                 lines.Add(line);
 
                 canvas.Children.Add(line);
             }
 
-            public void Add(Shape shape, double linesThickness)
+            public void AddCycle(List<Point> points, double crossTrackDist)
             {
-                int brushId = shapes.Count;
-                Brush brush = null;
-                if (brushId < brushes2.Length)
-                    brush = brushes2[brushId];
-                else
-                    brush = new SolidColorBrush(RandomColor());
+                System.Windows.Shapes.Path path = CreateCyclePath(points, crossTrackDist);
 
-                shape.Stroke = brush;
-                shape.StrokeThickness = linesThickness;
-                shapes.Add(shape);
+                pathsPoints.Add(points);
+                paths.Add(path);
 
-                canvas.Children.Add(shape);
+                canvas.Children.Add(path);
+            }
+
+            public void SetLineThickness(double linesThickness)
+            {
+                foreach (var tb in textBlocks)
+                {
+                    Border borderActive = tb.Parent as Border;
+                    borderActive.BorderThickness = new Thickness(linesThickness);
+                }
+                foreach (var line in lines)
+                    line.StrokeThickness = linesThickness;
+                foreach (var path in paths)
+                    path.StrokeThickness = linesThickness;
+            }
+
+            public void SetCyclesSeparation(double dist, double linesThickness)
+            {
+                foreach (var path in paths)
+                    canvas.Children.Remove(path);
+                paths.Clear();
+
+                for (int i = 0; i < pathsPoints.Count; ++i)
+                {
+                    double crossTrackDist = dist * (int)((i + 1) / 2) * (int)(i % 2 == 0 ? 1 : -1);
+
+                    System.Windows.Shapes.Path path = CreateCyclePath(pathsPoints[i], crossTrackDist);
+                    path.StrokeThickness = linesThickness;
+
+                    paths.Add(path);
+
+                    canvas.Children.Add(path);
+                }
             }
 
             public TextBlock FirstSelected()
@@ -280,6 +325,38 @@ namespace CxxDependencyVisualizer
                     (textBlocks[i].Parent as Border).BorderBrush = brushes[(int)type];
             }
 
+            private System.Windows.Shapes.Path CreateCyclePath(List<Point> points, double dist)
+            {
+                int brushId = paths.Count;
+                Brush brush = null;
+                if (brushId < brushes2.Length)
+                    brush = brushes2[brushId];
+                else
+                    brush = new SolidColorBrush(RandomColor());
+
+                PathGeometry pathGeom = new PathGeometry();
+
+                for (int i = 0; i < points.Count; ++i)
+                {
+                    Point prev = points[i];
+                    Point curr = points[(i + 1) % points.Count];
+                    PathFigure fig = new PathFigure();
+                    fig.StartPoint = prev;
+                    QuadraticBezierSegment seg = new QuadraticBezierSegment();
+                    seg.Point1 = Util.CalculateBezierPoint(prev, curr, dist);
+                    seg.Point2 = curr;
+                    fig.Segments.Add(seg);
+                    pathGeom.Figures.Add(fig);
+                }
+
+                System.Windows.Shapes.Path path = new System.Windows.Shapes.Path();
+                path.Data = pathGeom;
+                path.Stroke = brush;
+                path.StrokeThickness = 1;
+
+                return path;
+            }
+
             private Color RandomColor()
             {
                 Random r = new Random();
@@ -290,15 +367,14 @@ namespace CxxDependencyVisualizer
 
             List<TextBlock> textBlocks = new List<TextBlock>();
             List<Line> lines = new List<Line>();
-            List<Shape> shapes = new List<Shape>();
+            List<List<Point>> pathsPoints = new List<List<Point>>();
+            List<System.Windows.Shapes.Path> paths = new List<System.Windows.Shapes.Path>();
             Brush[] brushes = new Brush[]{ Brushes.Red, Brushes.DarkOrange, Brushes.Green };
             Brush[] brushes2 = new Brush[] { Brushes.Red, Brushes.Green, Brushes.Blue, Brushes.DarkOrange, Brushes.DarkCyan, Brushes.DarkMagenta};
         }
 
         private void TextBlock_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            double linesThickness = menu_LinesWidthSlider.Value;
-
             var textBlock = sender as TextBlock;
             TextBlock lastTextBlock = null;
 
@@ -312,9 +388,9 @@ namespace CxxDependencyVisualizer
             activeControls.Reset(data);
             
             if (lastTextBlock != null)
-                activeControls.Select(lastTextBlock, ActiveControls.ColorId.Selected, linesThickness);
+                activeControls.Select(lastTextBlock, ActiveControls.ColorId.Selected);
 
-            activeControls.Select(textBlock, ActiveControls.ColorId.Selected, linesThickness);
+            activeControls.Select(textBlock, ActiveControls.ColorId.Selected);
 
             // select chldren and parents
             if (lastTextBlock == null)
@@ -323,14 +399,14 @@ namespace CxxDependencyVisualizer
                 foreach (var c in d.children)
                 {
                     var child = data.dict[c];
-                    activeControls.Select(child.textBlock, ActiveControls.ColorId.Child, linesThickness);
-                    activeControls.Add(d.center, child.center, ActiveControls.ColorId.Child, linesThickness);
+                    activeControls.Select(child.textBlock, ActiveControls.ColorId.Child);
+                    activeControls.AddLine(d.center, child.center, ActiveControls.ColorId.Child);
                 }
                 foreach (var p in d.parents)
                 {
                     var parent = data.dict[p];
-                    activeControls.Select(parent.textBlock, ActiveControls.ColorId.Parent, linesThickness);
-                    activeControls.Add(d.center, parent.center, ActiveControls.ColorId.Parent, linesThickness);
+                    activeControls.Select(parent.textBlock, ActiveControls.ColorId.Parent);
+                    activeControls.AddLine(d.center, parent.center, ActiveControls.ColorId.Parent);
                 }    
             }
             // find and select path
@@ -362,16 +438,18 @@ namespace CxxDependencyVisualizer
                         // intermediate index
                         // edge borders are already handled
                         if (i > 0)
-                            activeControls.Select(d.textBlock, selectedType, linesThickness);
+                            activeControls.Select(d.textBlock, selectedType);
 
                         // handle lines from previous (parent) to child (current)
                         var child = data.dict[path[i + 1]];
-                        activeControls.Add(d.center, child.center, selectedType, linesThickness);
+                        activeControls.AddLine(d.center, child.center, selectedType);
                     }
 
                     activeControls.ReSelect(1, selectedType);
                 }
             }
+
+            activeControls.SetLineThickness(menu_LinesWidthSlider.Value);
         }
 
         private void MenuItemCycles_Click(object sender, RoutedEventArgs e)
@@ -397,50 +475,27 @@ namespace CxxDependencyVisualizer
             // sort cycles by name to compare between them and reject already added
             if (cycles.Count > 0)
             {
-                double dist = menu_CyclesLinesDistanceSlider.Value;
+                double dist = menu_CyclesLinesDistanceSlider.Value / 100;
 
                 for (int i = 0; i < cycles.Count; ++i)
                 {
-                    PathGeometry pathGeom = new PathGeometry();
-                    
-                    var cycle = cycles[i];
-                    var back = cycle[cycle.Count - 1];
-                    var prev = data.dict[back];
-                    foreach(var s in cycle)
+                    List<Point> points = new List<Point>();
+
+                    foreach (var s in cycles[i])
                     {
                         var curr = data.dict[s];
-                        activeControls.Select(curr.textBlock, ActiveControls.ColorId.Selected, linesThickness);
+                        activeControls.Select(curr.textBlock, ActiveControls.ColorId.Selected);
 
-                        PathFigure fig = new PathFigure();
-                        fig.StartPoint = prev.center;
-                        QuadraticBezierSegment seg = new QuadraticBezierSegment();
-                        seg.Point1 = CalculateBezierPoint(prev.center, curr.center, i, dist);
-                        seg.Point2 = curr.center;
-                        fig.Segments.Add(seg);
-                        pathGeom.Figures.Add(fig);
-
-                        prev = curr;
+                        points.Add(curr.center);
                     }
 
-                    System.Windows.Shapes.Path path = new System.Windows.Shapes.Path();
-                    path.Data = pathGeom;
-                    activeControls.Add(path, linesThickness);
-                }
-            }
-        }
+                    double crossTrackDist = dist * (int)((i + 1) / 2) * (int)(i % 2 == 0 ? 1 : -1);
 
-        private Point CalculateBezierPoint(Point p1, Point p2, int i, double dist)
-        {
-            double x = p1.X + 0.5 * (p2.X - p1.X);
-            double y = p1.Y + 0.5 * (p2.Y - p1.Y);
-            if (i <= 0)
-                return new Point(x, y);
-            double l = Math.Sqrt(x * x + y * y);
-            double x2 = x / l;
-            double y2 = y / l;
-            int sign = i % 2 != 0 ? 1 : -1;
-            double d = dist * (i + 1) / 2;
-            return new Point(x - sign * d * x2, y + sign * d * y2);
+                    activeControls.AddCycle(points, crossTrackDist * gd.CellSize.Width);
+                }
+
+                activeControls.SetLineThickness(menu_LinesWidthSlider.Value);
+            }
         }
 
         private void canvasGrid_MouseWheel(object sender, MouseWheelEventArgs e)

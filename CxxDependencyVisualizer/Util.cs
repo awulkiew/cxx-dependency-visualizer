@@ -209,5 +209,23 @@ namespace CxxDependencyVisualizer
         {
             return Len(Sub(p, q));
         }
+
+        public static Point Rot90(Point v)
+        {
+            return new Point(-v.Y, v.X);
+        }
+
+        public static Point CalculateBezierPoint(Point p1, Point p2, double crossTrackDist)
+        {
+            Point c = new Point(0.5 * (p1.X + p2.X),
+                                0.5 * (p1.Y + p2.Y));
+            if (crossTrackDist == 0)
+                return c;
+            double l = Len(c);
+            if (l == 0)
+                return c;
+            Point v = Rot90(Mul(Sub(c, p1), crossTrackDist / l));
+            return Add(c, v);
+        }
     }
 }

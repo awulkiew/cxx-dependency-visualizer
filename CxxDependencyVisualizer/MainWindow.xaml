@@ -9,7 +9,6 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="1*" />
-            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <Grid Grid.Row="0" x:Name="canvasGrid" ClipToBounds="True" Background="White"
               SizeChanged="canvasGrid_SizeChanged"
@@ -53,7 +52,9 @@
                             <RadioButton x:Name="menu_Layout2" Content="Layout 2 (Max Level)" Margin="10,0" />
                             <RadioButton x:Name="menu_Layout3" Content="Layout 3 (Radial-Hierarchy)" Margin="10,0" />
                             <RadioButton x:Name="menu_Layout4" Content="Layout 4 (Force-Directed)" Margin="10,0" />
-                            <CheckBox x:Name="menu_ShowLines" Content="Show Lines" Margin="10,10,10,0"/>
+                            <Button x:Name="buttonAnalyze" Content="Analyze" Margin="10,10,10,20"
+                                    Click="buttonAnalyze_Click" />
+                            <CheckBox x:Name="menu_ShowLines" Content="Show Lines" Margin="10,20,10,10" Checked="menu_ShowLines_Checked" Unchecked="menu_ShowLines_Unchecked"/>
                             <Label Content="Lines Width" Margin="5,10,5,0"/>
                             <Grid Margin="10,0">
                                 <Grid.ColumnDefinitions>
@@ -61,7 +62,7 @@
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
                                 <Label Width="32" x:Name="menu_LinesWidthLabel" Grid.Column="0" Content="2"/>
-                                <Slider x:Name="menu_LinesWidthSlider" Grid.Column="1" Minimum="1" Maximum="10" Value="2" />
+                                <Slider x:Name="menu_LinesWidthSlider" Grid.Column="1" Minimum="1" Maximum="20" Value="2" />
                             </Grid>
                             <Label Content="Cycles Separation" Margin="5,10,5,0"/>
                             <Grid Margin="10,0">
@@ -70,10 +71,8 @@
                                     <ColumnDefinition Width="1*" />
                                 </Grid.ColumnDefinitions>
                                 <Label Width="32" x:Name="menu_CyclesLinesDistanceLabel" Grid.Column="0" Content="25"/>
-                                <Slider x:Name="menu_CyclesLinesDistanceSlider" Grid.Column="1" Minimum="10" Maximum="100" Value="25" />
+                                <Slider x:Name="menu_CyclesLinesDistanceSlider" Grid.Column="1" Minimum="10" Maximum="200" Value="25" />
                             </Grid>
-                            <Button x:Name="buttonAnalyze" Content="Analyze" Margin="10,10"
-                                Click="buttonAnalyze_Click" />
                         </StackPanel>
                         <StackPanel Grid.Row="1" Background="White" HorizontalAlignment="Left">
                             <Label Content="Find" Margin="5,10,5,0" />
