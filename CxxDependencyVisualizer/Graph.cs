@@ -56,10 +56,10 @@ namespace CxxDependencyVisualizer
         public LibData()
         { }
 
-        public LibData(string dir, string file, bool fromLibOnly)
+        public LibData(string dir, string file, bool fromLibOnly, bool ignoreComments)
         {
             rootPath = Util.PathFromDirFile(dir, file);
-            Analyze(dir, rootPath, null, fromLibOnly, 0);
+            Analyze(dir, rootPath, null, fromLibOnly, ignoreComments);
 
             foreach (var d in dict)
             {
@@ -70,7 +70,9 @@ namespace CxxDependencyVisualizer
             }
         }
 
-        private void Analyze(string dir, string path, string parentPath, bool fromLibOnly, int level)
+        private void Analyze(string dir, string path, string parentPath,
+                             bool fromLibOnly, bool ignoreComments,
+                             int level = 0)
         {
             if (dict.ContainsKey(path))
             {
@@ -81,7 +83,7 @@ namespace CxxDependencyVisualizer
                 if (fromLibOnly && !File.Exists(path))
                     return;
 
-                List<string> children = Util.GetIncludePaths(dir, path);
+                List<string> children = Util.GetIncludePaths(dir, path, ignoreComments);
                 Node data = new Node(parentPath, level);
                 foreach (string c in children)
                 {
@@ -95,7 +97,7 @@ namespace CxxDependencyVisualizer
 
                 foreach (string p in data.children)
                 {
-                    Analyze(dir, p, path, fromLibOnly, level + 1);
+                    Analyze(dir, p, path, fromLibOnly, ignoreComments, level + 1);
                 }
             }
         }

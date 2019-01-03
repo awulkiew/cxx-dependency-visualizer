@@ -85,7 +85,7 @@ namespace CxxDependencyVisualizer
             canvas.Children.Clear();
 
             // Analyze includes and create dictionary
-            data = new LibData(textBoxDir.Text, textBoxFile.Text, true);
+            data = new LibData(textBoxDir.Text, textBoxFile.Text, true, (bool)menu_IgnoreComments.IsChecked);
 
             if ((bool)menu_Layout4.IsChecked)
             {

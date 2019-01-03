@@ -43,44 +43,136 @@ namespace CxxDependencyVisualizer
                  : path.Clone() as string;
         }
 
-        public static List<string> GetIncludePaths(string dir, string path)
+        public static List<string> GetIncludePaths(string dir, string path, bool ignoreComments)
         {
             List<string> result = new List<string>();
 
             if (File.Exists(path))
             {
+                bool startsInComment = false;
                 StreamReader sr = new StreamReader(path);
                 while (!sr.EndOfStream)
                 {
                     string line = sr.ReadLine();
                     if (!Empty(line))
                     {
-                        int idHash = line.IndexOf("#");
-                        int idInclude = line.IndexOf("include");
-                        if (idHash >= 0 && idInclude >= 0 && idHash < idInclude)
+                        if (ignoreComments)
                         {
-                            int idBegin = -1;
-                            char closingChar = '\0';
-                            if ((idBegin = line.IndexOf('<')) >= 0)
-                                closingChar = '>';
-                            else if ((idBegin = line.IndexOf('"')) >= 0)
-                                closingChar = '"';
-                            int idEnd = idBegin >= 0 ? line.IndexOf(closingChar, idBegin + 1) : -1;
-                            if (idEnd >= 0 && idBegin <= idEnd)
-                            {
-                                string include = line.Substring(idBegin + 1, idEnd - idBegin - 1);
-                                string p = PathFromDirFile(closingChar == '>'
-                                                             ? dir
-                                                             : DirFromPath(path),
-                                                           include);
-                                result.Add(p);
-                            }
+                            startsInComment = RemoveCommentsFromLine(ref line, startsInComment);
                         }
+
+                        string p = GetIncludePath(dir, path, line);
+
+                        if (!Empty(p))
+                            result.Add(p);
                     }
                 }
             }
 
             return result;
+        }
+
+        public static void TestRemoveCommentsFromLine()
+        {
+            TestRemoveCommentsFromLineOne("// comment", false, "", false);
+            TestRemoveCommentsFromLineOne("abc // comment", false, "abc ", false);
+            TestRemoveCommentsFromLineOne("/* comment */", false, "", false);
+            TestRemoveCommentsFromLineOne("abc /* comment */ def", false, "abc  def", false);
+            TestRemoveCommentsFromLineOne("abc // /* comment */ def", false, "abc ", false);
+            TestRemoveCommentsFromLineOne("abc // /* comment", false, "abc ", false);
+            TestRemoveCommentsFromLineOne("abc /* // comment", false, "abc ", true);
+            TestRemoveCommentsFromLineOne("abc /* // comment */ def // comment", false, "abc  def ", false);
+            TestRemoveCommentsFromLineOne("abc // comment", true, "", true);
+            TestRemoveCommentsFromLineOne("comment */ abc // comment", true, " abc ", false);
+        }
+
+        public static void TestRemoveCommentsFromLineOne(string line, bool startsInComment, string expected, bool expectedResult)
+        {
+            bool r = RemoveCommentsFromLine(ref line, startsInComment);
+            System.Diagnostics.Debug.Assert(line == expected);
+            System.Diagnostics.Debug.Assert(r == expectedResult);
+        }
+
+        public static bool RemoveCommentsFromLine(ref string line, bool startsInComment)
+        {
+            if (startsInComment)
+            {
+                int idCommentEnd = line.IndexOf("*/");
+                if (idCommentEnd >= 0)
+                {
+                    //string comment = line.Substring(0, idCommentEnd + 2);
+                    line = line.Substring(idCommentEnd + 2);
+                }
+                else
+                {
+                    //string comment = line;
+                    line = "";
+                    return true;
+                }
+            }
+
+            for (; ; )
+            {
+                int idLineComment = line.IndexOf("//");
+                int idCommentBegin = line.IndexOf("/*");
+                
+                if (idLineComment >= 0 && (idCommentBegin < 0 || idLineComment < idCommentBegin))
+                {
+                    //string comment = line.Substring(idLineComment);
+                    line = line.Substring(0, idLineComment);
+                    return false;
+                }
+
+                if (idCommentBegin >= 0)
+                {
+                    int idCommentEnd = line.IndexOf("*/", idCommentBegin + 2);
+
+                    //string comment = idCommentEnd >= 0
+                    //               ? line.Substring(idCommentBegin, idCommentEnd - idCommentBegin)
+                    //               : line.Substring(idCommentBegin);
+
+                    // NOTE: With this approach the whole line is searched again
+                    //       after removal of this comment block
+                    string pre = line.Substring(0, idCommentBegin);
+                    string post = idCommentEnd >= 0
+                                ? line.Substring(idCommentEnd + 2)
+                                : "";
+                    line = pre + post;
+
+                    if (idCommentEnd < 0)
+                        return true;
+                }
+                else
+                    return false;
+            }
+        }
+
+        public static string GetIncludePath(string dir, string path, string line)
+        {
+            int idHash = line.IndexOf("#");
+            int idInclude = line.IndexOf("include");
+            if (idHash >= 0 && idInclude >= 0 && idHash < idInclude)
+            {
+                int idBegin = -1;
+                char closingChar = '\0';
+                if ((idBegin = line.IndexOf('<')) >= 0)
+                    closingChar = '>';
+                else if ((idBegin = line.IndexOf('"')) >= 0)
+                    closingChar = '"';
+                int idEnd = idBegin >= 0 ? line.IndexOf(closingChar, idBegin + 1) : -1;
+                if (idEnd >= 0 && idBegin <= idEnd)
+                {
+                    string include = line.Substring(idBegin + 1, idEnd - idBegin - 1);
+                    include = include.Trim();
+                    string p = PathFromDirFile(closingChar == '>'
+                                                 ? dir
+                                                 : DirFromPath(path),
+                                               include);
+                    return p;
+                }
+            }
+
+            return "";
         }
 
         public static Size MeasureTextBlock(string text)
