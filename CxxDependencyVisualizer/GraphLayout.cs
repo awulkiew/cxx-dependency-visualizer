@@ -148,6 +148,10 @@ namespace CxxDependencyVisualizer
                     string path = d.Key.Substring(dirPath.Length);
                     inputNodes.Add(new DirNode.PathNodePair(path, d.Value));
                 }
+                else
+                {
+                    inputNodes.Add(new DirNode.PathNodePair(d.Key, d.Value));
+                }
             }
 
             DirNode hierarchy = DirNode.Create(inputNodes);

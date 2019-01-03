@@ -38,6 +38,7 @@ namespace CxxDependencyVisualizer
         public List<string> parents = new List<string>();
         public int minLevel = int.MaxValue;
         public int maxLevel = int.MinValue;
+        public bool isForeign = false;
         public bool duplicatedChildren = false;
 
         public List<Node> childNodes = new List<Node>();
@@ -58,8 +59,9 @@ namespace CxxDependencyVisualizer
 
         public LibData(string dir, string file, bool fromLibOnly, bool ignoreComments)
         {
+            string dirPath = Util.PathFromDirFile(dir, "");
             rootPath = Util.PathFromDirFile(dir, file);
-            Analyze(dir, rootPath, null, fromLibOnly, ignoreComments);
+            Analyze(dirPath, rootPath, null, fromLibOnly, ignoreComments);
 
             foreach (var d in dict)
             {
@@ -80,6 +82,17 @@ namespace CxxDependencyVisualizer
             }
             else
             {
+                if (!File.Exists(path))
+                {
+                    if (fromLibOnly)
+                        return;
+
+                    Node foreignNode = new Node(parentPath, level);
+                    foreignNode.isForeign = true;
+                    dict.Add(path, foreignNode);
+                    return;
+                }
+
                 if (fromLibOnly && !File.Exists(path))
                     return;
 
@@ -87,10 +100,17 @@ namespace CxxDependencyVisualizer
                 Node data = new Node(parentPath, level);
                 foreach (string c in children)
                 {
-                    if (fromLibOnly && !File.Exists(c))
-                        continue;
+                    if (File.Exists(c))
+                    {
+                        data.AddChild(c);
+                    }
+                    else
+                    {
+                        if (fromLibOnly)
+                            continue;
 
-                    data.AddChild(c);
+                        data.AddChild(c.Substring(dir.Length));
+                    }
                 }
 
                 dict.Add(path, data);

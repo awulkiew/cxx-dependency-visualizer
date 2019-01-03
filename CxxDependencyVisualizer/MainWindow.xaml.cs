@@ -85,7 +85,9 @@ namespace CxxDependencyVisualizer
             canvas.Children.Clear();
 
             // Analyze includes and create dictionary
-            data = new LibData(textBoxDir.Text, textBoxFile.Text, true, (bool)menu_IgnoreComments.IsChecked);
+            data = new LibData(textBoxDir.Text, textBoxFile.Text,
+                               (bool)menu_IgnoreForeign.IsChecked,
+                               (bool)menu_IgnoreComments.IsChecked);
 
             if ((bool)menu_Layout4.IsChecked)
             {
@@ -129,7 +131,9 @@ namespace CxxDependencyVisualizer
 
                 Border border = new Border();
                 border.BorderThickness = new Thickness(1);
-                border.BorderBrush = Brushes.Blue;
+                border.BorderBrush = d.Value.isForeign
+                                   ? Brushes.Black
+                                   : Brushes.Blue;
                 border.Child = textBlock;
                 double l = d.Value.center.X - d.Value.textBlock.Width / 2;
                 double t = d.Value.center.Y - d.Value.textBlock.Height / 2;
@@ -229,7 +233,9 @@ namespace CxxDependencyVisualizer
 
                     Border borderActive = tb.Parent as Border;
                     borderActive.BorderThickness = new Thickness(1);
-                    borderActive.BorderBrush = Brushes.Blue;
+                    borderActive.BorderBrush = d.isForeign
+                                             ? Brushes.Black
+                                             : Brushes.Blue;
                 }
                 textBlocks.Clear();
 
