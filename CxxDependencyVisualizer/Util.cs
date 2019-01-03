@@ -164,10 +164,18 @@ namespace CxxDependencyVisualizer
                 {
                     string include = line.Substring(idBegin + 1, idEnd - idBegin - 1);
                     include = include.Trim();
-                    string p = PathFromDirFile(closingChar == '>'
-                                                 ? dir
-                                                 : DirFromPath(path),
-                                               include);
+                    string p;
+                    if (closingChar == '>')
+                    {
+                        p = PathFromDirFile(dir, include);
+                    }
+                    else
+                    {
+                        p = PathFromDirFile(DirFromPath(path), include);
+                        if (!File.Exists(p))
+                            p = PathFromDirFile(dir, include);
+                    }
+
                     return p;
                 }
             }
