@@ -27,12 +27,10 @@ namespace CxxDependencyVisualizer
 
             // Simple layout algorithm based on include level
             List<int> counts = new List<int>();
+            int sum = 0;
             foreach (var l in levels)
-                counts.Add(l.Count());
-            counts.Sort();
-            int medianCount = counts.Count > 0
-                            ? counts[counts.Count / 2]
-                            : 0;
+                sum += l.Count;
+            int avgCount = sum / levels.Count;
 
             int y = 0;
             for (int i = 0; i < levels.Count; ++i)
@@ -42,14 +40,14 @@ namespace CxxDependencyVisualizer
                 int remaining = lvl.Count;
                 for (int j = 0; j < lvl.Count; ++j)
                 {
-                    if (x >= medianCount)
+                    if (x >= avgCount)
                     {
                         ++y;
                         x = 0;
-                        remaining -= medianCount;
+                        remaining -= avgCount;
                     }
 
-                    int shift = Math.Min(medianCount, remaining) - 1;
+                    int shift = Math.Min(avgCount, remaining) - 1;
 
                     lvl[j].center.X = (-shift / 2 + x) * cellSize;
                     lvl[j].center.Y = y * cellSize;
